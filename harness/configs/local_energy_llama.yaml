@@ -1,11 +1,9 @@
-# MEASURED energy for Llama-3.3-70B on a rented GPU (M3).
-#   bash harness/scripts/run_local_energy.sh meta-llama/Llama-3.3-70B-Instruct harness/configs/local_energy_llama.yaml
-# GATED: accept the license at https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct
-#        and have HF_TOKEN set.
-# DISK: bf16 weights are ~140 GB (needs a ~200 GB disk). On a 100 GB disk, use an
-#       FP8 checkpoint (~70 GB) instead and change BOTH the served model and the
-#       `model:` below to it, e.g. RedHatAI/Llama-3.3-70B-Instruct-FP8-dynamic
-#       (realistic 70B deployment; note the precision in the paper).
+# MEASURED energy for Llama-3.3-70B (FP8) on a single H200 (M3).
+#   bash harness/scripts/run_local_energy.sh RedHatAI/Llama-3.3-70B-Instruct-FP8-dynamic harness/configs/local_energy_llama.yaml
+# FP8 (~70 GB) is REQUIRED on a single H200: bf16 (140 GB) leaves no VRAM for KV
+# cache on the 141 GB card, and doesn't fit a 100 GB disk. FP8 is a realistic,
+# standard 70B deployment; record the precision (FP8) in the paper.
+# If the repo is gated, accept the license on its HF page; HF_TOKEN must be set.
 # idle_power_w preset to 75.63 (this pod's measured idle); adjust if different.
 run_name: local_energy_llama
 seed: 12345
@@ -25,7 +23,7 @@ models:
     backend: api
     params:
       provider: vllm
-      model: meta-llama/Llama-3.3-70B-Instruct   # or an FP8 checkpoint on a 100GB disk
+      model: RedHatAI/Llama-3.3-70B-Instruct-FP8-dynamic   # FP8, fits one H200 + 100GB disk
       idle_power_w: 75.63
       gpu_index: 0
     price: { in: 0.0, out: 0.0 }
