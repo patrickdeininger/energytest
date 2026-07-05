@@ -18,6 +18,9 @@ trap 'kill $VPID 2>/dev/null || true' EXIT
 
 echo ">> waiting for vLLM to be ready (first serve also downloads weights; up to 40 min) ..."
 for i in $(seq 1 480); do
+  if ! kill -0 "$VPID" 2>/dev/null; then
+    echo "   vLLM process exited early -- see vllm_serve.log (tail below):"; tail -20 vllm_serve.log; exit 1
+  fi
   if curl -sf http://localhost:8000/v1/models >/dev/null 2>&1; then echo "   ready"; break; fi
   sleep 5
   if [ "$i" -eq 480 ]; then echo "   vLLM did not become ready; see vllm_serve.log"; exit 1; fi
