@@ -21,8 +21,12 @@ from harness.scoring.detection import score  # noqa: E402
 from harness.analysis.stats import (  # noqa: E402
     ci95_halfwidth, balanced_accuracy, mcc, mcnemar, majority_baseline_accuracy,
 )
+from harness.analysis.energy_validation import apply_measured_energy  # noqa: E402
 
 COMBINED = "harness/runs/primevul_combined/results.jsonl"
+# Optional override written by fold_measured_energy.py: {model_id: {active_j, gross_j, ...}}.
+# When present, the listed models' energy is swapped estimated -> measured before analysis.
+MEASURED_OVERRIDE = "harness/runs/primevul_combined/measured_energy.json"
 FIGDIR = Path("figures")
 TIER = {
     "gpt-5.1": "frontier", "claude-sonnet-5": "frontier", "gemini-3.1-pro": "frontier",
@@ -38,6 +42,11 @@ LABEL = {
 
 def load_by_model():
     rows = [json.loads(l) for l in open(COMBINED, encoding="utf-8") if l.strip()]
+    override_path = Path(MEASURED_OVERRIDE)
+    if override_path.exists():
+        measured = json.loads(override_path.read_text(encoding="utf-8"))
+        rows = apply_measured_energy(rows, measured)
+        print(f"Applied measured energy override for: {', '.join(sorted(measured))}\n")
     by = defaultdict(list)
     for r in rows:
         by[r["model_id"]].append(r)
@@ -59,6 +68,7 @@ def enriched(by) -> pd.DataFrame:
             "specificity": s["tn"] / (s["tn"] + s["fp"]) if (s["tn"] + s["fp"]) else 0.0,
             "usd_task": sum(r.get("usd_cost", 0) or 0 for r in rs) / len(rs),
             "energy_j": sum(r.get("energy_j", 0) or 0 for r in rs) / len(rs),
+            "energy_source": rs[0].get("energy_source", "estimated_flops"),
         })
     return pd.DataFrame(recs).sort_values("bal_acc", ascending=False).reset_index(drop=True)
 
@@ -108,8 +118,11 @@ def main() -> int:
         r = mcnemar([da[t] for t in common], [db[t] for t in common])
         print(f"  {LABEL[a]} vs {LABEL[b]}: n={len(common)}, chi2={r['statistic']:.2f}, p={r['p_value']:.2e}")
 
+    any_measured = (df["energy_source"] == "measured_nvml").any()
+    energy_label = ("Energy per task, J (log; measured for local open models)"
+                    if any_measured else "Estimated energy per task, J (log)")
     pareto_fig(df, "usd_task", "USD per task (log)", "pareto_balacc_cost")
-    pareto_fig(df, "energy_j", "Estimated energy per task, J (log)", "pareto_balacc_energy")
+    pareto_fig(df, "energy_j", energy_label, "pareto_balacc_energy")
     print(f"\nWrote {out_csv} and figures/pareto_*.pdf/png")
     return 0
 
