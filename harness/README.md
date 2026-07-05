@@ -63,10 +63,14 @@ Outputs land in `harness/runs/<run_id>/`: `results.jsonl`, `manifest.json`,
 
 ## Running on PrimeVul
 
-1. Download PrimeVul JSONL (function-level) and place it at
-   `harness/data/primevul/primevul_test.jsonl`. Sources:
-   GitHub `DLVulDet/PrimeVul` (Google Drive links) or HF mirror
-   `starsofchance/PrimeVul`. License: MIT (verify).
+1. Download PrimeVul JSONL (function-level, ~64 MB; gitignored) to
+   `harness/data/primevul/primevul_test.jsonl`:
+   ```bash
+   mkdir -p harness/data/primevul
+   curl -L -o harness/data/primevul/primevul_test.jsonl \
+     "https://huggingface.co/datasets/colin/PrimeVul/resolve/main/primevul_test.jsonl"
+   ```
+   (Mirror of the PrimeVul dataset; original: GitHub `DLVulDet/PrimeVul`.)
 2. Verify model slugs and run:
    ```bash
    python -m harness.run --config harness/configs/primevul_subset.yaml
