@@ -19,8 +19,8 @@ import numpy as np
 
 from harness.analysis.stats import balanced_accuracy, balanced_accuracy_ci, paired_bootstrap_bal_acc_diff
 
-DEEPSEEK = 0.674  # best open model (direct mode, N=1549)
-FULLRUN = {"claude-sonnet-5": 0.613, "gpt-5.1": 0.614, "gemini-3.1-pro": 0.623}
+DEEPSEEK = 0.676  # best open model (direct mode, N=1549)
+FULLRUN = {"claude-sonnet-5": 0.616, "gpt-5.1": 0.617, "gemini-3.1-pro": 0.623}
 
 
 def _load(glob_pat: str) -> list:

@@ -42,6 +42,11 @@ def test_build_prompt_keeps_short_code_intact():
         ("After analysis, the function is NOT vulnerable.", 0),
         ("The code contains a buffer overflow; it is vulnerable.", 1),
         ("No vulnerability was found in this snippet.", 0),
+        # Reasoning-mode outputs: verdict comes first (possibly bold), then verbose
+        # analysis that mentions marker words. The leading verdict must win.
+        ("**NO**\n\nThe code path that would be vulnerable is unreachable here.", 0),
+        ("**YES**\n\nThe buffer copy has no bounds check.", 1),
+        ("NO. This function only performs arithmetic and is exploitable by nothing.", 0),
     ],
 )
 def test_parse_extracts_label(text, expected):

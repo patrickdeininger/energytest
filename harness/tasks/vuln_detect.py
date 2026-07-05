@@ -67,6 +67,19 @@ def _coerce(value) -> int | None:
     return None
 
 
+def _leading_verdict(text: str) -> int | None:
+    """The prompt asks the model to answer YES/NO first. Honor that leading token
+    (possibly wrapped in markdown emphasis/quotes) before scanning the body, so that
+    verbose reasoning outputs---which mention 'vulnerable'/'yes'/'no' throughout their
+    analysis---are not misread. Returns 1 (YES), 0 (NO), or None if no leading verdict.
+    """
+    s = re.sub(r"^[\s*_#>\-\"'`.:]+", "", text)  # strip leading markdown/punctuation/space
+    m = re.match(r"(yes|no)\b", s, re.IGNORECASE)
+    if m:
+        return 1 if m.group(1).lower() == "yes" else 0
+    return None
+
+
 def _from_json(text: str) -> int | None:
     m = re.search(r"\{.*\}", text, re.DOTALL)
     if not m:
@@ -91,6 +104,10 @@ def parse(text: str) -> Prediction:
     from_json = _from_json(raw)
     if from_json is not None:
         return Prediction(label=from_json, raw=raw, parsed_ok=True)
+
+    leading = _leading_verdict(raw)
+    if leading is not None:
+        return Prediction(label=leading, raw=raw, parsed_ok=True)
 
     low = raw.lower()
     for marker in _NEG_MARKERS:
