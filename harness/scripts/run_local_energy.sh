@@ -16,11 +16,11 @@ vllm serve "$MODEL" --port 8000 "$@" > "vllm_serve.log" 2>&1 &
 VPID=$!
 trap 'kill $VPID 2>/dev/null || true' EXIT
 
-echo ">> waiting for vLLM to be ready ..."
-for i in $(seq 1 180); do
+echo ">> waiting for vLLM to be ready (first serve also downloads weights; up to 40 min) ..."
+for i in $(seq 1 480); do
   if curl -sf http://localhost:8000/v1/models >/dev/null 2>&1; then echo "   ready"; break; fi
   sleep 5
-  if [ "$i" -eq 180 ]; then echo "   vLLM did not become ready; see vllm_serve.log"; exit 1; fi
+  if [ "$i" -eq 480 ]; then echo "   vLLM did not become ready; see vllm_serve.log"; exit 1; fi
 done
 
 echo ">> current GPU power (should be near idle before load):"
