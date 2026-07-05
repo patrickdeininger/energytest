@@ -21,16 +21,18 @@
 
 \Title{Open or Frontier? A Cost- and Energy-Aware Benchmark of Large Language Models for Software Vulnerability Detection}
 
-\newcommand{\orcidauthorA}{0000-0000-0000-000X}
+\newcommand{\orcidauthorA}{0009-0007-9625-3094}
+\newcommand{\orcidauthorB}{0000-0002-4979-6156}
 
-\Author{Firstname Lastname $^{1,}$*\orcidA{}}
+\Author{Patrick Deininger $^{1,2,}$*\orcidA{}, and Wolfgang Slany $^{1}$\orcidB{}}
 
-\AuthorNames{Firstname Lastname}
+\AuthorNames{Patrick Deininger and Wolfgang Slany}
 
 \address{%
-$^{1}$ \quad Affiliation; e-mail@e-mail.com}
+$^{1}$ \quad Institute of Software Engineering and Artificial Intelligence, Graz University of Technology, 8010 Graz, Austria; patrick.deininger@student.tugraz.at (P.D.); wolfgang.slany@tugraz.at (W.S.)\\
+$^{2}$ \quad Institute of Computer Science and Artificial Intelligence, FH JOANNEUM -- University of Applied Sciences, 8020 Graz, Austria}
 
-\corres{Correspondence: e-mail@e-mail.com}
+\corres{Correspondence: patrick.deininger@student.tugraz.at}
 
 \abstract{(1) Background: Large language models (LLMs) are increasingly applied to software vulnerability detection. Yet evaluations overwhelmingly report accuracy while ignoring the monetary and environmental cost of inference, and they under-represent openly available (open-weight) models relative to proprietary frontier systems. (2) Methods: We benchmark eight contemporary LLMs, three frontier (Claude Sonnet~5, GPT-5.1, Gemini~3.1~Pro) and five open-weight (DeepSeek-V3.2, GLM-5, Llama-3.3-70B, Qwen3-Coder-30B, Gemma-3-4B), on a stratified 1549-function subset of the label-clean PrimeVul dataset. We treat cost per task and energy as first-class evaluation axes alongside detection quality, and report latency as a secondary, load-confounded observation. Monetary cost and latency are measured directly. Energy is estimated with a transparent FLOP-based model for the API-served models and measured directly on a controlled GPU for the two locally servable open models. (3) Results: The central finding concerns efficiency. Open-weight models occupy the quality and efficiency Pareto frontier, and no frontier model is Pareto-optimal. A 4-billion-parameter open model matches or exceeds frontier detection quality at roughly one-hundredth the monetary cost (at current API pricing) and one to two orders of magnitude less energy per task. This separation holds across configurations and widens when the frontier models are allowed to reason. On quality we adopt balanced accuracy as the primary metric, because no LLM beats a trivial always-safe baseline on raw accuracy. The three highest-scoring models are all open-weight (DeepSeek-V3.2 0.676, Gemma-3-4B 0.653, GLM-5 0.637, against 0.616 to 0.623 for the frontier models), and on a Holm-corrected paired bootstrap DeepSeek-V3.2 significantly exceeds all three frontier models in a compute-matched direct configuration. Allowing the frontier to reason erases this quality gap, and its best model reaches the best open model, but it does so at four to 7.5 times the cost, which leaves the efficiency conclusion untouched. Absolute quality is modest throughout. At realistic prevalence every model yields low precision, a classical static analyzer is competitive, and direct on-GPU measurement of two open models confirms the FLOP energy estimate to within roughly a factor of two. (4) Conclusions: For this task the efficiency-optimal choice, a small open-weight model, is also quality-competitive in every configuration. This has direct implications for on-premises security tooling and its energy and carbon footprint.}
 
@@ -205,13 +207,17 @@ We benchmarked eight open-weight and frontier LLMs on label-clean vulnerability 
 
 \vspace{6pt}
 
-\authorcontributions{Conceptualization, methodology, software, investigation, and writing were carried out by the author(s) with generative-AI assistance as disclosed. All authors have read and agreed to the published version of the manuscript.}
+\authorcontributions{Conceptualization, P.D.\ and W.S.; methodology, P.D.; software, P.D.; validation, P.D.; formal analysis, P.D.; investigation, P.D.; data curation, P.D.; writing (original draft preparation), P.D.; writing (review and editing), P.D.\ and W.S.; visualization, P.D.; supervision, W.S.; project administration, P.D. All authors have read and agreed to the published version of the manuscript.}
 
-\funding{This research received no external funding.}
+\funding{This research was funded by the State of Styria (Land Steiermark), Office of the Styrian Provincial Government, Department 12 (Economy, Tourism, Science and Research), within the PRISMA project, grant number ABT12-270413/2024.}
+
+\institutionalreview{Not applicable. This study did not involve humans or animals. It evaluates the outputs of large language models on the publicly available PrimeVul dataset.}
+
+\informedconsent{Not applicable.}
 
 \dataavailability{The measurement harness, all run configurations, the exact sampled function identifiers, and the aggregated results are released at [repository URL]. The PrimeVul dataset is available from its original authors~\citep{primevul}.}
 
-\conflictsofinterest{The authors declare no conflicts of interest.}
+\conflictsofinterest{The authors declare no conflicts of interest. The funders had no role in the design of the study; in the collection, analyses, or interpretation of data; in the writing of the manuscript; or in the decision to publish the results.}
 
 \reftitle{References}
 
