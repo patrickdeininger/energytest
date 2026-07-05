@@ -1,0 +1,30 @@
+# Tier-B recheck: rerun GLM-5 at max_output_tokens=64 (reasoning OFF), same sample
+# and seed as the combined run, to test whether GLM-5's balanced accuracy (0.647,
+# obtained at a 256-token budget in the fill run) is budget-invariant. The review
+# panel flagged the 256-vs-64 asymmetry as a possible accuracy confound; the verdict
+# is emitted first, so we expect ~no change. ~$0.5 at OpenRouter GLM-5 pricing.
+run_name: primevul_glm_recheck
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 10
+models:
+  - id: glm-5
+    backend: api
+    params: { provider: openrouter, model: z-ai/glm-5, active_params_b: 32, reasoning: { enabled: false } }
+    price: { in: 0.60, out: 1.92 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+output_dir: harness/runs

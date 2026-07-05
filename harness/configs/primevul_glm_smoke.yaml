@@ -1,0 +1,27 @@
+# Tiny smoke (n=5) to validate the OpenRouter GLM-5 path end-to-end before the full
+# recheck run. Costs a fraction of a cent.
+run_name: primevul_glm_smoke
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 5
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 2
+models:
+  - id: glm-5
+    backend: api
+    params: { provider: openrouter, model: z-ai/glm-5, active_params_b: 32, reasoning: { enabled: false } }
+    price: { in: 0.60, out: 1.92 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+output_dir: harness/runs
