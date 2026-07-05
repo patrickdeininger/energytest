@@ -124,6 +124,8 @@ def run(cfg: RunConfig, *, run_id: str, timestamp: str, git_sha: str = "unknown"
                 "correct": bool(pred.label == task.label),
                 "parsed_ok": pred.parsed_ok,
                 "raw_output": resp.text[:2000],
+                "input_tokens": resp.input_tokens,
+                "output_tokens": resp.output_tokens,
                 "error": None,
             })
             row.update(metrics)
