@@ -1,0 +1,38 @@
+# MEASURED energy for Llama-3.3-70B on a rented GPU (M3).
+#   bash harness/scripts/run_local_energy.sh meta-llama/Llama-3.3-70B-Instruct harness/configs/local_energy_llama.yaml
+# GATED: accept the license at https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct
+#        and have HF_TOKEN set.
+# DISK: bf16 weights are ~140 GB (needs a ~200 GB disk). On a 100 GB disk, use an
+#       FP8 checkpoint (~70 GB) instead and change BOTH the served model and the
+#       `model:` below to it, e.g. RedHatAI/Llama-3.3-70B-Instruct-FP8-dynamic
+#       (realistic 70B deployment; note the precision in the paper).
+# idle_power_w preset to 75.63 (this pod's measured idle); adjust if different.
+run_name: local_energy_llama
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 300
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 1
+models:
+  - id: llama-3.3-70b-measured
+    backend: api
+    params:
+      provider: vllm
+      model: meta-llama/Llama-3.3-70B-Instruct   # or an FP8 checkpoint on a 100GB disk
+      idle_power_w: 75.63
+      gpu_index: 0
+    price: { in: 0.0, out: 0.0 }
+meters: [latency, energy_measured]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+output_dir: harness/runs
