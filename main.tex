@@ -1,8 +1,8 @@
 %=================================================================
 % Open vs. Frontier LLMs for Vulnerability Detection — cost/latency/energy benchmark
 % MDPI Computers template. First draft (2026-07-04), generated with AI assistance;
-% see the GenAI disclosure in Section 3. Results are preliminary (estimated energy,
-% direct-answer mode) — see Limitations.
+% see the GenAI disclosure in Section 3. Energy is measured on-GPU for two open
+% models and FLOP-estimated for the rest; direct-answer mode — see Limitations.
 %=================================================================
 \documentclass[computers,article,submit,moreauthors]{Definitions/mdpi}
 
@@ -32,7 +32,7 @@ $^{1}$ \quad Affiliation; e-mail@e-mail.com}
 
 \corres{Correspondence: e-mail@e-mail.com}
 
-\abstract{(1) Background: Large language models (LLMs) are increasingly applied to software vulnerability detection, yet evaluations overwhelmingly report accuracy while ignoring the monetary and environmental cost of inference, and they under-represent openly available (open-weight) models relative to proprietary frontier systems. (2) Methods: We benchmark eight contemporary LLMs---three frontier (Claude Sonnet~5, GPT-5.1, Gemini~3.1~Pro) and five open-weight (DeepSeek-V3.2, GLM-5, Llama-3.3-70B, Qwen3-Coder-30B, Gemma-3-4B)---on a stratified 1549-function subset of the label-clean PrimeVul dataset, treating cost-per-task, latency, and energy as first-class evaluation axes alongside detection quality. Energy is estimated with a transparent FLOP-based model; monetary cost and latency are measured directly. (3) Results: On this imbalanced benchmark no model beats a trivial always-safe baseline on raw accuracy, so we evaluate with balanced accuracy. The three highest-quality models are all open-weight (DeepSeek-V3.2 0.674, Gemma-3-4B 0.649, GLM-5 0.647), each significantly exceeding all three frontier models (0.61--0.62; McNemar $p<10^{-5}$). A 4-billion-parameter open model matched or exceeded frontier quality at roughly one-hundredth the monetary cost and one-fortieth the estimated energy per task, and the open-weight models occupy the quality--efficiency Pareto frontier; absolute quality is modest for all models. (4) Conclusions: For this task, detection quality and efficiency point the same way---toward small open-weight models---with direct implications for on-premises security tooling and its carbon footprint.}
+\abstract{(1) Background: Large language models (LLMs) are increasingly applied to software vulnerability detection, yet evaluations overwhelmingly report accuracy while ignoring the monetary and environmental cost of inference, and they under-represent openly available (open-weight) models relative to proprietary frontier systems. (2) Methods: We benchmark eight contemporary LLMs---three frontier (Claude Sonnet~5, GPT-5.1, Gemini~3.1~Pro) and five open-weight (DeepSeek-V3.2, GLM-5, Llama-3.3-70B, Qwen3-Coder-30B, Gemma-3-4B)---on a stratified 1549-function subset of the label-clean PrimeVul dataset, treating cost-per-task, latency, and energy as first-class evaluation axes alongside detection quality. Monetary cost and latency are measured directly; energy is estimated with a transparent FLOP-based model for the API-served models and measured directly on a controlled GPU for the two locally-servable open models. (3) Results: On this imbalanced benchmark no model beats a trivial always-safe baseline on raw accuracy, so we evaluate with balanced accuracy. The three highest-quality models are all open-weight (DeepSeek-V3.2 0.674, Gemma-3-4B 0.649, GLM-5 0.647), each significantly exceeding all three frontier models (0.61--0.62; McNemar $p<10^{-5}$). A 4-billion-parameter open model matched or exceeded frontier quality at roughly one-hundredth the monetary cost and one-fortieth the estimated energy per task, and the open-weight models occupy the quality--efficiency Pareto frontier; absolute quality is modest for all models. Direct on-GPU measurement of two open models confirms the FLOP estimate is faithful to within a factor of two and leaves the efficiency ordering intact. (4) Conclusions: For this task, detection quality and efficiency point the same way---toward small open-weight models---with direct implications for on-premises security tooling and its carbon footprint.}
 
 \keyword{large language models; vulnerability detection; software security; benchmarking; energy efficiency; open-weight models; inference cost; green AI}
 
@@ -50,10 +50,10 @@ This paper brings the two concerns together. We benchmark eight contemporary LLM
 \begin{itemize}
 \item A cost-, latency-, and energy-aware benchmark of open-weight versus frontier LLMs on the label-clean PrimeVul dataset~\citep{primevul}, with a transparent, reproducible measurement harness (Section~\ref{sec:methods}).
 \item Empirical evidence that, on this task, small open-weight models sit on the quality--efficiency Pareto frontier: the best of them match or beat frontier models on balanced accuracy---with statistically significant gaps---at one-to-two orders of magnitude lower cost and energy (Section~\ref{sec:results}).
-\item An honest treatment of what can and cannot be measured for closed API models---direct measurement of cost and latency, and a bounded, assumption-explicit estimate of energy (Section~\ref{sec:methods}).
+\item An honest treatment of what can and cannot be measured for closed API models---direct measurement of cost and latency throughout, direct on-GPU energy measurement for the two locally-servable open models, and a bounded, assumption-explicit FLOP estimate of energy for the API-only models that the measured points confirm to within a factor of two (Section~\ref{sec:methods}).
 \end{itemize}
 
-We are explicit that these results are a first, deployment-realistic snapshot: energy is estimated rather than measured on the open side, and models are evaluated in a direct-answer configuration. Section~\ref{sec:discussion} details these limitations and the measured extensions they invite.
+We are explicit that these results are a first, deployment-realistic snapshot: energy is measured directly for the two locally-servable open models and FLOP-estimated for the API-only models, and models are evaluated in a direct-answer configuration. Section~\ref{sec:discussion} details these limitations and the extensions they invite.
 
 \section{Related Work}
 
@@ -93,12 +93,12 @@ Gemma-3-4B & open & 4B\\
 \end{table}
 
 \subsection{Measurement Methodology}
-We treat detection quality, cost, latency, and energy as first-class axes. Because the open-weight models here are also accessed through the API gateway, cost and latency are measured identically across all models, giving an apples-to-apples comparison; energy is estimated for all.
+We treat detection quality, cost, latency, and energy as first-class axes. Because the open-weight models here are also accessed through the API gateway, cost and latency are measured identically across all models, giving an apples-to-apples comparison. Energy is FLOP-estimated for the API-served models and, for the two open models we could serve locally on a single GPU (Qwen3-Coder-30B, Llama-3.3-70B), measured directly on that GPU.
 
-\textbf{Cost} is computed exactly from logged input/output token counts and published per-token pricing. \textbf{Latency} is measured client-side (total wall-clock and output tokens per second); we report it as service latency and note that the reported figures were collected under concurrent load and therefore conflate model speed with queueing. \textbf{Energy} cannot be measured for API-served models, which run on unknown hardware with unknown batching~\citep{jegham}. We therefore report a transparent FLOP-based estimate, $E \approx 2\,N_\text{active}\,T\,\varepsilon$, where $N_\text{active}$ is the active parameter count, $T$ the total token count, and $\varepsilon$ a system-level energy-per-FLOP constant calibrated so that a frontier-class query reproduces published per-query estimates~\citep{jegham}. For open-weight models the active parameter count is known, giving a grounded estimate; for frontier models it is a bounded assumption, and we treat the resulting energy as an estimate with an explicit uncertainty rather than a measurement. Every result row carries an \texttt{energy\_source} tag so that measured and estimated energy are never conflated. Directly measuring open-weight energy on a controlled GPU (via the NVML energy counter~\citep{parttime,samsi}) is a planned extension; the harness already implements it.
+\textbf{Cost} is computed exactly from logged input/output token counts and published per-token pricing. \textbf{Latency} is measured client-side (total wall-clock and output tokens per second); we report it as service latency and note that the reported figures were collected under concurrent load and therefore conflate model speed with queueing. \textbf{Energy} cannot be measured for API-served models, which run on unknown hardware with unknown batching~\citep{jegham}. We therefore report a transparent FLOP-based estimate, $E \approx 2\,N_\text{active}\,T\,\varepsilon$, where $N_\text{active}$ is the active parameter count, $T$ the total token count, and $\varepsilon$ a system-level energy-per-FLOP constant calibrated so that a frontier-class query reproduces published per-query estimates~\citep{jegham}. For open-weight models the active parameter count is known, giving a grounded estimate; for frontier models it is a bounded assumption, and we treat the resulting energy as an estimate with an explicit uncertainty rather than a measurement. Every result row carries an \texttt{energy\_source} tag so that measured and estimated energy are never conflated. For the two locally-servable open models we \emph{measure} energy directly on a dedicated NVIDIA H200 GPU, reading the NVML cumulative energy counter~\citep{parttime,samsi} across each request at concurrency~1; we report both a gross energy and an active energy that subtracts the measured idle draw. Qwen3-Coder-30B was served in \texttt{bfloat16} and Llama-3.3-70B in FP8 (the 70B model does not fit a single H200 in \texttt{bfloat16}). The remaining open models could not be served under our fixed local stack---Gemma-3-4B is incompatible with the pinned vLLM/CUDA build, and DeepSeek-V3.2 and GLM-5 exceed single-GPU capacity---so their energy remains FLOP-estimated.
 
 \subsection{Harness and Reproducibility}
-All experiments run through a purpose-built, test-driven harness (63 automated tests) with pluggable model backends and measurement meters. Each run records its resolved configuration, random seed, model versions, and a per-token price snapshot; results are written incrementally so that long runs are crash-safe and resumable. Generation is deterministic (temperature~0, fixed maximum output length). The harness, configurations, and the exact sampled function identifiers are released with this paper (see Data Availability).
+All experiments run through a purpose-built, test-driven harness (75 automated tests) with pluggable model backends and measurement meters. Each run records its resolved configuration, random seed, model versions, and a per-token price snapshot; results are written incrementally so that long runs are crash-safe and resumable. Generation is deterministic (temperature~0, fixed maximum output length). The harness, configurations, and the exact sampled function identifiers are released with this paper (see Data Availability).
 
 \subsection{Use of Generative AI}
 In accordance with venue policy we disclose that generative AI tools were used substantially in this work: to assist with the research design, to implement the measurement harness, to run the experiments, and to draft this manuscript. All AI-generated code is covered by the automated test suite, all quantitative results are produced by the released harness from logged data, and the authors have reviewed and take responsibility for the content. No AI system was used to fabricate data or citations.
@@ -112,7 +112,7 @@ Our sample is imbalanced (549 vulnerable, 1000 safe), so raw accuracy is dominat
 Table~\ref{tab:results} reports all eight models plus the two trivial baselines, sorted by balanced accuracy. Two findings hold. First, the three highest-quality models are all open-weight---DeepSeek-V3.2 (0.674), Gemma-3-4B (0.649), and GLM-5 (0.647)---and each exceeds all three frontier models (0.613--0.623). Paired McNemar tests confirm the gaps are significant: DeepSeek-V3.2 versus GPT-5.1 gives $\chi^2=20.3$, $p=7\times10^{-6}$; Gemma-3-4B versus Claude-Sonnet-5 gives $\chi^2=40.4$, $p=2\times10^{-10}$. Second, absolute quality is modest for all models (balanced accuracy 0.52--0.67, MCC 0.03--0.34), and one open model, Qwen3-Coder-30B, barely exceeds chance (0.516)---so the finding is that the \emph{best} open models beat the frontier, not that every open model does. Frontier models show high recall but low specificity (they over-flag), which is why they trail on the balanced metric despite competitive F1.
 
 \begin{table}[H]
-\caption{Detection quality and efficiency on PrimeVul (N=1549, direct-answer mode), sorted by balanced accuracy. Accuracy 95\% CI half-width is $\approx\pm0.025$. Cost is measured; energy is FLOP-estimated. Best model per column in bold.\label{tab:results}}
+\caption{Detection quality and efficiency on PrimeVul (N=1549, direct-answer mode), sorted by balanced accuracy. Accuracy 95\% CI half-width is $\approx\pm0.025$. Cost is measured for all models; energy is measured on a dedicated H200 GPU for the two locally-served open models ($\dagger$, active energy; see Section~\ref{sec:energy-validation}) and FLOP-estimated otherwise. Best model per column in bold; the energy column mixes measured and estimated values and is left unbolded.\label{tab:results}}
 \begin{adjustwidth}{-\extralength}{0cm}
 \begin{tabularx}{\fulllength}{lcCCCCCCC}
 \toprule
@@ -124,8 +124,8 @@ GLM-5 & open & 0.647 & 0.325 & 0.602 & 0.560 & 0.941 & 0.00062 & 471\\
 Gemini-3.1-Pro & frontier & 0.623 & 0.297 & 0.591 & 0.525 & \textbf{0.963} & 0.00448 & 1966\\
 GPT-5.1 & frontier & 0.614 & 0.225 & 0.559 & 0.567 & 0.772 & 0.00139 & 1332\\
 Claude-Sonnet-5 & frontier & 0.613 & 0.264 & 0.579 & 0.519 & 0.934 & 0.00441 & 2489\\
-Llama-3.3-70B & open & 0.603 & 0.260 & 0.578 & 0.502 & 0.956 & 0.00008 & 944\\
-Qwen3-Coder-30B & open & 0.516 & 0.030 & 0.410 & 0.532 & 0.459 & 0.00006 & \textbf{40}\\
+Llama-3.3-70B & open & 0.603 & 0.260 & 0.578 & 0.502 & 0.956 & 0.00008 & 738$^\dagger$\\
+Qwen3-Coder-30B & open & 0.516 & 0.030 & 0.410 & 0.532 & 0.459 & 0.00006 & 88$^\dagger$\\
 \midrule
 \textit{Always-safe (baseline)} & --- & 0.500 & 0.000 & 0.000 & 0.646 & 0.000 & --- & ---\\
 \textit{Always-vulnerable (baseline)} & --- & 0.500 & 0.000 & 0.523 & 0.354 & 1.000 & --- & ---\\
@@ -144,8 +144,23 @@ The efficiency separation is order-of-magnitude and robust to the choice of qual
 
 \begin{figure}[H]
 \includegraphics[width=10.5cm]{figures/pareto_balacc_energy}
-\caption{Balanced accuracy versus estimated energy per task (log scale). Energy is FLOP-estimated; the ordering is a preview pending direct GPU measurement of the open-side models (Section~\ref{sec:limits}).\label{fig:pareto-energy}}
+\caption{Balanced accuracy versus energy per task (log scale). Energy is measured on an H200 GPU for Qwen3-Coder-30B and Llama-3.3-70B (Section~\ref{sec:energy-validation}) and FLOP-estimated for the other six models; substituting the measured values for the prior estimates leaves the ordering unchanged.\label{fig:pareto-energy}}
 \end{figure}
+
+\subsection{Measured Versus Estimated Energy}\label{sec:energy-validation}
+For the two open models we could serve locally, we replace the FLOP estimate with direct H200 measurement and ask how far the estimate was off (Table~\ref{tab:energy-validation}). The estimate brackets the measurement within a factor of two, but errs in opposite directions by architecture. For the sparse Qwen3-Coder-30B (3B active of 30B total) the estimate \emph{undershoots} the measurement by $2.2\times$ (40 vs.\ 88\,J): an active-parameter FLOP count captures neither the memory traffic of the full expert set nor the low GPU utilization of single-request decode. For the dense Llama-3.3-70B, served in FP8, the estimate \emph{overshoots} by $1.3\times$ (944 vs.\ 738\,J), because the estimate is precision-agnostic while the measurement benefits from 8-bit arithmetic. As an external check, measured energy per output token---$1.4$\,J for the 3B-active MoE and $11.6$\,J for the 70B model---brackets the $\sim$3--4\,J/token reported for datacenter GPUs by Samsi et al.~\citep{samsi} and scales with model size as expected. Crucially, the measured values move both models only within their order of magnitude and change no ranking on the energy axis (Figure~\ref{fig:pareto-energy}); the FLOP estimate is therefore a faithful order-of-magnitude proxy for the cross-model comparison, which is what justifies using it for the API-only models that cannot be measured.
+
+\begin{table}[H]
+\caption{Measured (H200, NVML) versus FLOP-estimated energy per task for the two locally-served open models. Active energy subtracts the measured idle draw; the ratio is measured-active over estimated.\label{tab:energy-validation}}
+\begin{tabularx}{\textwidth}{lCCCCC}
+\toprule
+\textbf{Model} & \textbf{Precision} & \textbf{Estimated (J)} & \textbf{Measured active (J)} & \textbf{Meas./est.} & \textbf{J / out.\ tok}\\
+\midrule
+Qwen3-Coder-30B & bf16 & 40 & 88 & $2.2\times$ & 1.4\\
+Llama-3.3-70B & FP8 & 944 & 738 & $0.8\times$ & 11.6\\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \section{Discussion}\label{sec:discussion}
 
@@ -158,16 +173,16 @@ No model exceeded 0.68 balanced accuracy, and none beat the trivial always-safe 
 \subsection{Limitations and Threats to Validity}\label{sec:limits}
 Several limitations bound our claims and shape the measured extensions we are pursuing.
 \begin{itemize}
-\item \textbf{Energy is estimated, not measured.} On the open side we report a FLOP-based estimate; the strongest version of this study measures energy directly on a controlled GPU for the locally-feasible open models. The harness implements NVML counter-based measurement~\citep{parttime}; executing it is the primary planned extension.
+\item \textbf{Energy is only partly measured.} We measure energy directly on an H200 GPU for the two locally-servable open models; for the three frontier models (unknown hardware) and the three open models we could not serve locally, energy remains a FLOP-based estimate. The measured points bracket that estimate within a factor of two and preserve every ranking (Section~\ref{sec:energy-validation}), but a direct measurement for all self-hostable models would remove the remaining assumption.
 \item \textbf{Direct-answer configuration.} Reasoning was disabled where the provider allowed it, to obtain a comparable single-shot judgement; Gemini~3.1~Pro admits no such mode. A dedicated reasoning-versus-direct comparison---quantifying how much accuracy reasoning buys and at what energy cost---is a natural and, for a cost-aware venue, valuable follow-up.
 \item \textbf{Token-budget asymmetry.} Three reasoning-capable models were run with a larger output budget than the other five; because these are already the efficiency losers, the reported gap is conservative.
 \item \textbf{Latency under concurrency.} Reported latency was collected under concurrent load and reflects service latency; a single-request latency pass is pending.
 \item \textbf{Scope.} We report one dataset, one task formulation, and a balanced sample of 1549 functions; generalization to other languages, to statement-level localization, and to the realistic-imbalance regime (via a scored metric such as VD-Score~\citep{primevul}) remains future work.
 \end{itemize}
-None of these caveats reverses the headline: the direction of both accuracy and efficiency favors small open-weight models, and the measured axes (cost, latency) are unaffected by the energy-estimation caveat.
+None of these caveats reverses the headline: the direction of both accuracy and efficiency favors small open-weight models; cost and latency are measured for all models, energy is measured for two of them, and the estimated energy of the rest is order-of-magnitude-faithful to the measurements we do have.
 
 \section{Conclusions}
-We benchmarked eight open-weight and frontier LLMs on label-clean vulnerability detection with cost, latency, and energy as first-class axes. Open-weight models led on accuracy and dominated on efficiency: a 4-billion-parameter open model matched or exceeded frontier accuracy at roughly one-hundredth the cost and one-fortieth the estimated energy per task, while all models remained close to chance on this hard benchmark. For security teams weighing on-premises open models against proprietary frontier APIs, at least on this task, the efficiency-motivated choice is also the accuracy-motivated one. The immediate next step is to replace estimated open-side energy with direct GPU measurement and to quantify the accuracy--energy trade-off of reasoning.
+We benchmarked eight open-weight and frontier LLMs on label-clean vulnerability detection with cost, latency, and energy as first-class axes. Open-weight models led on accuracy and dominated on efficiency: a 4-billion-parameter open model matched or exceeded frontier accuracy at roughly one-hundredth the cost and one-fortieth the estimated energy per task, while all models remained close to chance on this hard benchmark. For security teams weighing on-premises open models against proprietary frontier APIs, at least on this task, the efficiency-motivated choice is also the accuracy-motivated one. Direct H200 measurement of two locally-servable open models confirms the FLOP estimate is faithful to within a factor of two and leaves the efficiency ordering intact; extending on-GPU measurement to the remaining self-hostable models and quantifying the accuracy--energy trade-off of reasoning are the immediate next steps.
 
 \vspace{6pt}
 
