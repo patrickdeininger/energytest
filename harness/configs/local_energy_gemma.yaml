@@ -1,0 +1,33 @@
+# MEASURED energy for Gemma-3-4B on a rented GPU (M3). Serve with:
+#   bash harness/scripts/run_local_energy.sh google/gemma-3-4b-it harness/configs/local_energy_gemma.yaml
+# N=300 subset (energy/task is low-variance) x concurrency=1 for clean attribution.
+# Set idle_power_w to the measured idle draw (setup_gpu.sh prints it).
+run_name: local_energy_gemma
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 300
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 1
+models:
+  - id: gemma-3-4b-measured
+    backend: api
+    params:
+      provider: vllm
+      model: google/gemma-3-4b-it   # must match the model served by vLLM
+      idle_power_w: 60.0             # <-- set to measured idle GPU power (W)
+      gpu_index: 0
+    price: { in: 0.0, out: 0.0 }
+meters: [latency, energy_measured]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+output_dir: harness/runs

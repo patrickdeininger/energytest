@@ -1,0 +1,27 @@
+run_name: pilot_dryrun
+seed: 12345
+dataset:
+  source: fixture
+  path: harness/data/fixtures/primevul_mini.jsonl
+  n: 10
+  stratify_by: label
+task: vuln_detect_binary
+models:
+  - id: mock-allvuln
+    backend: mock
+    params: { behavior: always_vulnerable }
+    price: { in: 0.5, out: 1.5 }
+  - id: mock-highrecall
+    backend: mock
+    params: { behavior: high_recall }
+    price: { in: 3.0, out: 15.0 }
+  - id: mock-balanced
+    backend: mock
+    params: { behavior: balanced }
+    price: { in: 5.0, out: 25.0 }
+meters: [cost, latency, energy_mock]
+reps: 3
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+output_dir: harness/runs

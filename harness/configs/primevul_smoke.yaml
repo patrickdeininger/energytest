@@ -1,0 +1,29 @@
+# Small REAL PrimeVul run: 20 stratified samples x 2 cheap open models x 1 rep
+# (~40 calls, ~$0.001). Validates the PrimeVul path + estimated-energy meter.
+run_name: primevul_smoke
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 20
+  stratify_by: label
+task: vuln_detect_binary
+models:
+  - id: qwen2.5-7b
+    backend: api
+    params: { provider: openrouter, model: qwen/qwen-2.5-7b-instruct, active_params_b: 7 }
+    price: { in: 0.04, out: 0.10 }
+  - id: llama3.1-8b
+    backend: api
+    params: { provider: openrouter, model: meta-llama/llama-3.1-8b-instruct, active_params_b: 8 }
+    price: { in: 0.02, out: 0.03 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+output_dir: harness/runs

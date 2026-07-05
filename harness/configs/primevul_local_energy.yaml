@@ -1,0 +1,36 @@
+# MEASURED open-side energy on a rented cloud GPU (M3). Runs models locally via
+# vLLM (OpenAI-compatible server on localhost) and measures GPU energy with the
+# NVML counter (ZeusEnergyMeter). IMPORTANT: concurrency MUST be 1 for clean
+# per-call energy attribution, and the GPU must be dedicated (no other load).
+# Set idle_power_w to the measured idle draw (nvidia-smi) before the run.
+# Serve one model at a time: `vllm serve <hf_model_id> --port 8000`, then run this;
+# repeat per model. See harness/scripts/setup_gpu.sh.
+run_name: primevul_local_energy
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 1
+models:
+  - id: qwen3-coder-30b-local
+    backend: api
+    params:
+      provider: vllm
+      model: Qwen/Qwen3-Coder-30B-A3B-Instruct   # HF id served by vLLM
+      idle_power_w: 60.0        # <-- set to your measured idle GPU power
+      gpu_index: 0
+    price: { in: 0.0, out: 0.0 }  # local: no API cost (GPU-hour amortized separately)
+meters: [latency, energy_measured]
+reps: 3
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+output_dir: harness/runs

@@ -1,0 +1,39 @@
+# Fill run: re-run ONLY the 3 reasoning models that broke in primevul_full (empty
+# content at the 64-token cap). Same sample as the first run (n=2000, seed 12345,
+# stratify label -> identical 1549 task IDs) so results merge cleanly with the 5
+# valid first-run models. Model IDs match the first run. Caveat: these 3 get a
+# 256-token budget (vs the first run's 64) so their cost/latency/energy carry an
+# asterisk; accuracy is unaffected (verdict is emitted first).
+run_name: primevul_fill
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 10
+models:
+  - id: claude-sonnet-5   # reasoning OFF (direct), matching the 5 valid models
+    backend: api
+    params: { provider: openrouter, model: anthropic/claude-sonnet-5, active_params_b: 100, reasoning: { enabled: false } }
+    price: { in: 2.0, out: 10.0 }
+  - id: glm-5             # reasoning OFF
+    backend: api
+    params: { provider: openrouter, model: z-ai/glm-5, active_params_b: 32, reasoning: { enabled: false } }
+    price: { in: 0.60, out: 1.92 }
+  - id: gemini-3.1-pro    # reasoning-only (no non-reasoning mode) -> report with a note
+    backend: api
+    params: { provider: openrouter, model: google/gemini-3.1-pro-preview, active_params_b: 100, reasoning: { enabled: true } }
+    price: { in: 2.0, out: 12.0 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 256
+  max_code_chars: 8000
+output_dir: harness/runs

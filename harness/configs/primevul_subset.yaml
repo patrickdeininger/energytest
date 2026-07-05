@@ -1,0 +1,42 @@
+# Real PrimeVul subset run (TEMPLATE — verify model slugs + download data first).
+# Data: download PrimeVul JSONL and place at the path below (see harness/README.md).
+# Model slugs below are indicative 2026 examples — confirm current availability on
+# your provider before running. Open models here run via OpenRouter (estimated
+# energy); measured open-side energy comes at M3 via local vLLM + Zeus.
+run_name: primevul_subset
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+models:
+  # Frontier (via OpenRouter, or set provider: openai/anthropic for native latency)
+  - id: claude-sonnet
+    backend: api
+    params: { provider: openrouter, model: anthropic/claude-sonnet-4.6 }
+    price: { in: 3.0, out: 15.0 }
+  - id: gpt-5-class
+    backend: api
+    params: { provider: openrouter, model: openai/gpt-5.2 }
+    price: { in: 1.75, out: 14.0 }
+  # Open-weight (via OpenRouter now; local vLLM at M3 for measured energy)
+  - id: qwen3-coder-30b
+    backend: api
+    params: { provider: openrouter, model: qwen/qwen3-coder-30b }
+    price: { in: 0.5, out: 1.5 }
+  - id: deepseek-v4
+    backend: api
+    params: { provider: openrouter, model: deepseek/deepseek-v4 }
+    price: { in: 0.6, out: 1.7 }
+meters: [cost, latency, energy_mock]
+reps: 3
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+output_dir: harness/runs

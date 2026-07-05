@@ -1,0 +1,10 @@
+{"id": "v1", "code": "void f(char *s){ char buf[16]; strcpy(buf, s); }", "label": 1, "cwe": "CWE-120", "source": "fixture"}
+{"id": "v2", "code": "void g(){ char b[8]; gets(b); }", "label": 1, "cwe": "CWE-242", "source": "fixture"}
+{"id": "v3", "code": "void h(char *u){ char c[32]; sprintf(c, \"%s\", u); }", "label": 1, "cwe": "CWE-787", "source": "fixture"}
+{"id": "v4", "code": "void run(char *cmd){ system(cmd); }", "label": 1, "cwe": "CWE-78", "source": "fixture"}
+{"id": "v5", "code": "void log(char *u){ printf(u); }", "label": 1, "cwe": "CWE-134", "source": "fixture"}
+{"id": "s1", "code": "void f(char *s){ char buf[16]; strncpy(buf, s, sizeof(buf)-1); buf[15]=0; }", "label": 0, "cwe": null, "source": "fixture"}
+{"id": "s2", "code": "void g(){ char b[8]; fgets(b, sizeof(b), stdin); }", "label": 0, "cwe": null, "source": "fixture"}
+{"id": "s3", "code": "void h(char *u){ char c[32]; snprintf(c, sizeof(c), \"%s\", u); }", "label": 0, "cwe": null, "source": "fixture"}
+{"id": "s4", "code": "int add(int a, int b){ return a + b; }", "label": 0, "cwe": null, "source": "fixture"}
+{"id": "s5", "code": "void log(char *u){ printf(\"%s\", u); }", "label": 0, "cwe": null, "source": "fixture"}

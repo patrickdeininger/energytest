@@ -1,0 +1,34 @@
+# MEASURED energy for Qwen3-Coder-30B (MoE, ~3B active) on a rented GPU (M3).
+#   bash harness/scripts/run_local_energy.sh Qwen/Qwen3-Coder-30B-A3B-Instruct harness/configs/local_energy_qwen.yaml
+# ~60GB in bf16 (fits A100-80GB / H100). On smaller GPUs add quantization + shorter
+# context to the driver, e.g.:  ... --quantization awq --max-model-len 8192
+# Set idle_power_w to the measured idle draw.
+run_name: local_energy_qwen
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 300
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 1
+models:
+  - id: qwen3-coder-30b-measured
+    backend: api
+    params:
+      provider: vllm
+      model: Qwen/Qwen3-Coder-30B-A3B-Instruct   # must match the served model
+      idle_power_w: 60.0                          # <-- set to measured idle GPU power (W)
+      gpu_index: 0
+    price: { in: 0.0, out: 0.0 }
+meters: [latency, energy_measured]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+output_dir: harness/runs

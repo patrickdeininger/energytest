@@ -1,0 +1,25 @@
+# Tiny REAL API smoke test: 10 fixture samples x 1 cheap model x 1 rep (~10 calls,
+# a fraction of a cent). Validates the API path end-to-end with real keys.
+# NOTE: energy_mock is a placeholder for API models; measured/estimated energy
+# arrives at M3. Adjust the model slug to a current, cheap model if needed.
+run_name: pilot_api_smoke
+seed: 12345
+dataset:
+  source: fixture
+  path: harness/data/fixtures/primevul_mini.jsonl
+  n: 10
+  stratify_by: label
+task: vuln_detect_binary
+models:
+  - id: qwen2.5-7b-smoke
+    backend: api
+    params:
+      provider: openrouter
+      model: qwen/qwen-2.5-7b-instruct   # verified present on OpenRouter (2026-07)
+    price: { in: 0.04, out: 0.10 }       # USD per 1M tokens
+meters: [cost, latency, energy_mock]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+output_dir: harness/runs

@@ -1,0 +1,77 @@
+# PrimeVul re-run: reasoning-ON vs reasoning-OFF for every model.
+# Balanced N=1098 (all 549 vuln + 549 safe). 13 configs: 8 direct + 5 reasoning.
+# max_output_tokens=384 bounds cost; direct models stop ~64 tokens, reasoning
+# models get room to think AND emit a verdict. Slugs/prices verified 2026-07-04.
+run_name: primevul_both_modes
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 1098
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 10
+models:
+  # ---------- DIRECT mode (reasoning disabled) — all 8 ----------
+  - id: claude-sonnet-5-direct
+    backend: api
+    params: { provider: openrouter, model: anthropic/claude-sonnet-5, active_params_b: 100, reasoning: { enabled: false } }
+    price: { in: 2.0, out: 10.0 }
+  - id: gpt-5.1-direct
+    backend: api
+    params: { provider: openrouter, model: openai/gpt-5.1, active_params_b: 100, reasoning: { enabled: false } }
+    price: { in: 1.25, out: 10.0 }
+  # (gemini-3.1-pro-direct dropped: Gemini 3.1 Pro has no non-reasoning mode on
+  #  OpenRouter — reasoning:disabled errors it. It appears in reasoning mode only.)
+  - id: gemma-3-4b-direct
+    backend: api
+    params: { provider: openrouter, model: google/gemma-3-4b-it, active_params_b: 4, reasoning: { enabled: false } }
+    price: { in: 0.05, out: 0.10 }
+  - id: qwen3-coder-30b-direct
+    backend: api
+    params: { provider: openrouter, model: qwen/qwen3-coder-30b-a3b-instruct, active_params_b: 3, reasoning: { enabled: false } }
+    price: { in: 0.07, out: 0.27 }
+  - id: llama-3.3-70b-direct
+    backend: api
+    params: { provider: openrouter, model: meta-llama/llama-3.3-70b-instruct, active_params_b: 70, reasoning: { enabled: false } }
+    price: { in: 0.10, out: 0.32 }
+  - id: deepseek-v3.2-direct
+    backend: api
+    params: { provider: openrouter, model: deepseek/deepseek-v3.2, active_params_b: 37, reasoning: { enabled: false } }
+    price: { in: 0.23, out: 0.34 }
+  - id: glm-5-direct
+    backend: api
+    params: { provider: openrouter, model: z-ai/glm-5, active_params_b: 32, reasoning: { enabled: false } }
+    price: { in: 0.60, out: 1.92 }
+  # ---------- REASONING mode (reasoning enabled) — the 5 reasoning-capable ----------
+  - id: claude-sonnet-5-reason
+    backend: api
+    params: { provider: openrouter, model: anthropic/claude-sonnet-5, active_params_b: 100, reasoning: { enabled: true } }
+    price: { in: 2.0, out: 10.0 }
+  - id: gpt-5.1-reason
+    backend: api
+    params: { provider: openrouter, model: openai/gpt-5.1, active_params_b: 100, reasoning: { enabled: true } }
+    price: { in: 1.25, out: 10.0 }
+  - id: gemini-3.1-pro-reason
+    backend: api
+    params: { provider: openrouter, model: google/gemini-3.1-pro-preview, active_params_b: 100, reasoning: { enabled: true } }
+    price: { in: 2.0, out: 12.0 }
+  - id: deepseek-v3.2-reason
+    backend: api
+    params: { provider: openrouter, model: deepseek/deepseek-v3.2, active_params_b: 37, reasoning: { enabled: true } }
+    price: { in: 0.23, out: 0.34 }
+  - id: glm-5-reason
+    backend: api
+    params: { provider: openrouter, model: z-ai/glm-5, active_params_b: 32, reasoning: { enabled: true } }
+    price: { in: 0.60, out: 1.92 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 384
+  max_code_chars: 8000
+output_dir: harness/runs

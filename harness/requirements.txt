@@ -1,0 +1,13 @@
+# Core (all runs)
+pydantic>=2
+pyyaml
+pandas
+matplotlib
+python-dotenv
+
+# API backends (M2)
+openai>=1.0
+
+# GPU measured-energy host only (M3) — install separately on the GPU box:
+#   pip install vllm pynvml
+# (kept out of the core list so the harness installs without CUDA)
