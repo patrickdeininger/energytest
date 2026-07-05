@@ -27,6 +27,12 @@ def _load_rows(run_dir: Path) -> list[dict]:
     return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
+def _col_mean(group, col: str) -> float:
+    """Mean of a column, or NaN if the meter that produces it wasn't used
+    (e.g. usd_cost is absent on local energy-only runs)."""
+    return float(group[col].mean()) if col in group.columns else float("nan")
+
+
 def build_report(run_dir) -> dict:
     run_dir = Path(run_dir)
     df = pd.DataFrame(_load_rows(run_dir))
@@ -54,9 +60,10 @@ def build_report(run_dir) -> dict:
                 "recall": s["recall"],
                 "f1": s["f1"],
                 "out_tok_mean": out_tok,
-                "usd_cost_mean": float(group["usd_cost"].mean()),
-                "total_ms_mean": float(group["total_ms"].mean()),
-                "energy_j_mean": float(group["energy_j"].mean()),
+                "usd_cost_mean": _col_mean(group, "usd_cost"),
+                "total_ms_mean": _col_mean(group, "total_ms"),
+                "energy_j_mean": _col_mean(group, "energy_j"),
+                "active_energy_j_mean": _col_mean(group, "active_energy_j"),
                 "energy_source": energy_source,
             }
         )
@@ -67,6 +74,8 @@ def build_report(run_dir) -> dict:
     plots = []
     for base_col, fname, xlabel in _PARETO:
         xcol = f"{base_col}_mean"
+        if xcol not in metrics.columns or metrics[xcol].isna().all():
+            continue  # skip axes whose meter wasn't used in this run
         fig, ax = plt.subplots(figsize=(5, 4))
         ax.scatter(metrics[xcol], metrics["accuracy"])
         for _, r in metrics.iterrows():
