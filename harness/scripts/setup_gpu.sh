@@ -1,40 +1,37 @@
 #!/usr/bin/env bash
-# M3 — measured open-side energy on a rented cloud GPU (RunPod / Vast.ai / Lambda).
-# Run this ON the GPU host (Linux + CUDA + a DEDICATED NVIDIA GPU, Volta or newer
-# so the NVML energy counter exists). Then run the harness against the local vLLM
-# server. See harness/configs/primevul_local_energy.yaml.
+# M3 setup on a CUDA-12.8 GPU host (e.g. RunPod H200, driver 12.8).
+# Installs a 12.8-MATCHED torch + vLLM (the default `pip install vllm` pulls a
+# newer-CUDA torch and fails with "driver too old"), verifies the NVML energy
+# counter, and prints idle power.
 set -euo pipefail
 
-# 1. Install deps (harness core + vLLM serving + NVML reader)
-pip install -r harness/requirements.txt
-pip install vllm pynvml
+echo ">> installing harness deps"
+pip install -q -r harness/requirements.txt pynvml
 
-# 2. Verify the NVML energy counter is readable (prints cumulative millijoules)
+echo ">> installing CUDA 12.8-matched torch (cu128)"
+pip install -q "torch==2.8.0" --index-url https://download.pytorch.org/whl/cu128
+
+echo ">> installing vLLM compatible with torch 2.8 (keeps torch pinned to cu128)"
+pip install -q "vllm<0.11" --extra-index-url https://download.pytorch.org/whl/cu128 \
+  --constraint <(printf 'torch==2.8.0\n')
+
+echo ">> verifying torch sees the GPU (must say CUDA OK)"
+python - <<'PY'
+import torch
+assert torch.cuda.is_available(), "CUDA NOT available -- torch/driver mismatch. Re-run the pinned install."
+print("   torch", torch.__version__, "| cuda", torch.version.cuda, "| GPU:", torch.cuda.get_device_name(0), "-> CUDA OK")
+PY
+
+echo ">> verifying NVML energy counter (Volta+)"
 python - <<'PY'
 import pynvml
 pynvml.nvmlInit()
 h = pynvml.nvmlDeviceGetHandleByIndex(0)
-print("NVML energy counter OK, mJ =", pynvml.nvmlDeviceGetTotalEnergyConsumption(h))
-print("current power W =", pynvml.nvmlDeviceGetPowerUsage(h) / 1000.0)
+print("   NVML energy counter OK, mJ =", pynvml.nvmlDeviceGetTotalEnergyConsumption(h))
+print("   current power W =", pynvml.nvmlDeviceGetPowerUsage(h) / 1000.0)
 PY
 
-# 3. Measure IDLE GPU power (nothing else running) and put it in the config's
-#    idle_power_w so active energy = gross - idle*duration.
-echo "Idle GPU power (W) — copy into primevul_local_energy.yaml idle_power_w:"
+echo ">> idle GPU power (W) -- copy into idle_power_w in the local_energy_*.yaml configs:"
 nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits
 
-# 4. (Optional) fix the power cap so energy/token is reproducible, and record it:
-# nvidia-smi -pl 300
-
-# 5. Serve ONE model at a time via vLLM (OpenAI-compatible on :8000), then run the
-#    harness (concurrency=1). Repeat per model, editing the config's model id.
-#    Example:
-#
-#    vllm serve Qwen/Qwen3-Coder-30B-A3B-Instruct --port 8000 &
-#    # wait for "Uvicorn running on ...", then:
-#    python -m harness.run --config harness/configs/primevul_local_energy.yaml
-#
-# Sanity check after a run: energy per output token should land near the
-# Samsi et al. ~3-4 J/token anchor for a model of this class.
-
-echo "Setup complete. Serve a model with vLLM, then run the local-energy config."
+echo ">> setup complete. Serve a model and run a local_energy config."
