@@ -1,0 +1,33 @@
+# Tier-B (C2): the two open models with native reasoning modes (DeepSeek-V3.2, GLM-5)
+# run WITH reasoning enabled on the full N=1549, same seed/sample, so the reasoning-vs-
+# direct comparison is symmetric (the main run had only the frontier reason). Addresses
+# the reviewer's asymmetry objection. 4096-token budget. Est. ~$5.
+run_name: primevul_open_reasoning
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 10
+models:
+  - id: deepseek-v3.2-reasoning
+    backend: api
+    params: { provider: openrouter, model: deepseek/deepseek-v3.2, active_params_b: 37, reasoning: { enabled: true } }
+    price: { in: 0.23, out: 0.34 }
+  - id: glm-5-reasoning
+    backend: api
+    params: { provider: openrouter, model: z-ai/glm-5, active_params_b: 32, reasoning: { enabled: true } }
+    price: { in: 0.60, out: 1.92 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 4096
+  max_code_chars: 8000
+output_dir: harness/runs
