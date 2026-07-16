@@ -19,6 +19,10 @@
 \dateaccepted{ }
 \datepublished{ }
 
+% Use an external BibTeX database (bibliography.bib) rather than a manual
+% thebibliography list; the class selects Definitions/mdpi.bst automatically.
+\externalbibliography{yes}
+
 \Title{Open or Frontier? A Cost- and Energy-Aware Benchmark of Large Language Models for Software Vulnerability Detection}
 
 \newcommand{\orcidauthorA}{0009-0007-9625-3094}
@@ -144,7 +148,7 @@ Qwen3-Coder-30B & open & 0.511 & 0.022 & 0.405 & 0.529 & 0.452 & 0.571 & 0.00006
 \end{table}
 
 \subsection{Efficiency and the Pareto Frontier}
-The efficiency separation is order-of-magnitude and robust to the choice of quality metric. Gemma-3-4B exceeds Claude-Sonnet-5 on balanced accuracy (0.653 against 0.616) while costing roughly one-hundredth as much per task (\$0.00004 against \$0.0044) and consuming one to two orders of magnitude less energy. The estimated 64\,J against 2489\,J is a 39$\times$ gap at our assumed frontier active-parameter count, and it spans roughly 10--150$\times$ across the plausible range of that assumption (Section~\ref{sec:energy-validation}). Service latency, measured client-side but under concurrent load, and therefore conflating model speed with queueing (see Section~\ref{sec:limits}), points the same way. Gemma-3-4B is the fastest model at 1.4\,s mean wall-clock time per task, against 3.4--4.7\,s for the slowest four (DeepSeek-V3.2, GLM-5, Gemini-3.1-Pro, Claude-Sonnet-5). Figures~\ref{fig:pareto-cost} and~\ref{fig:pareto-energy} plot balanced accuracy against cost and energy on log axes. The small open-weight models occupy the upper-left corner, with high quality at low cost and energy, and no frontier model is Pareto-optimal on either axis.
+The efficiency separation is order-of-magnitude and insensitive to the choice of quality metric. Gemma-3-4B exceeds Claude-Sonnet-5 on balanced accuracy (0.653 against 0.616) while costing roughly one-hundredth as much per task (\$0.00004 against \$0.0044) and consuming one to two orders of magnitude less energy. The estimated 64\,J against 2489\,J is a 39$\times$ gap at our assumed frontier active-parameter count, and it spans roughly 10--150$\times$ across the plausible range of that assumption (Section~\ref{sec:energy-validation}). Service latency, measured client-side but under concurrent load, and therefore conflating model speed with queueing (see Section~\ref{sec:limits}), points the same way. Gemma-3-4B is the fastest model at 1.4\,s mean wall-clock time per task, against 3.4--4.7\,s for the slowest four (DeepSeek-V3.2, GLM-5, Gemini-3.1-Pro, Claude-Sonnet-5). Figures~\ref{fig:pareto-cost} and~\ref{fig:pareto-energy} plot balanced accuracy against cost and energy on log axes. The small open-weight models occupy the upper-left corner, with high quality at low cost and energy, and no frontier model is Pareto-optimal on either axis.
 
 \begin{figure}[H]
 \includegraphics[width=10.5cm]{figures/pareto_balacc_cost}
@@ -159,7 +163,7 @@ The efficiency separation is order-of-magnitude and robust to the choice of qual
 \subsection{Measured Versus Estimated Energy}\label{sec:energy-validation}
 For the two open models we could serve locally, we replace the FLOP estimate with direct H200 measurement and ask how far the estimate was off (Table~\ref{tab:energy-validation}).\footnote{The measurement is a dedicated $N=300$ run at concurrency~1. The ``Estimated'' column is the mean FLOP estimate from the main $N=1549$ run. Mean output length matched across the two (about 64 tokens), so the per-task comparison is not materially confounded by the differing subset, though the two are not the identical requests.} The estimate agrees with the measurement to roughly a factor of two (0.8$\times$ to 2.2$\times$), and it errs in opposite directions by architecture. For the sparse Qwen3-Coder-30B (3B active of 30B total) the estimate \emph{undershoots} the measurement by $2.2\times$ (40 against 88\,J). An active-parameter FLOP count captures neither the memory traffic of the full expert set nor the low GPU utilization of single-request decode. For the dense Llama-3.3-70B, served in FP8, the estimate \emph{overshoots}. At 944\,J it is about 1.3 times the 738\,J measurement (equivalently, the measurement is $0.8\times$ the estimate, as in Table~\ref{tab:energy-validation}), because the estimate is precision-agnostic while the measurement benefits from 8-bit arithmetic. Measured energy per output token, $1.4$\,J for the 3B-active MoE and $11.6$\,J for the 70B model, \emph{straddles} the roughly 3--4\,J/token reported for datacenter GPUs by Samsi et al.~\citep{samsi}. Neither value lands inside that band, but they bracket it and scale with model size as expected, which is the most this loose cross-hardware check can establish.
 
-Two cautions bound what this validates. It confirms the estimator's structure and its energy-per-FLOP constant for small and mid-size \emph{open} models under single-request serving. It does not test the assumed frontier active-parameter count (Table~\ref{tab:models}), which is the dominant uncertainty in the frontier energy figures and cannot be measured here. The measurement is also taken at concurrency~1, a low-utilization and energy-pessimistic regime, while the estimator's constant is calibrated to batched datacenter serving, so exact agreement is not expected. The robust and measurement-independent conclusion is narrower, and it is the one we rely on. The measured values move both open models only within their order of magnitude. They keep both models well below every frontier estimate and leave the Pareto frontier and the open-versus-frontier separation unchanged (Figure~\ref{fig:pareto-energy}). The only reordering is at the extreme low-energy end, where Gemma-3-4B (estimated 64\,J) rather than Qwen3-Coder-30B (measured 88\,J) is now the least energy-intensive model. The efficiency gap is so large that even a two-fold estimation error, in either direction, does not threaten it.
+Two cautions bound what this validates. It confirms the estimator's structure and its energy-per-FLOP constant for small and mid-size \emph{open} models under single-request serving. It does not test the assumed frontier active-parameter count (Table~\ref{tab:models}), which is the dominant uncertainty in the frontier energy figures and cannot be measured here. The measurement is also taken at concurrency~1, a low-utilization and energy-pessimistic regime, while the estimator's constant is calibrated to batched datacenter serving, so exact agreement is not expected. The measurement-independent conclusion is narrower, and it is the one we rely on. The measured values move both open models only within their order of magnitude. They keep both models well below every frontier estimate and leave the Pareto frontier and the open-versus-frontier separation unchanged (Figure~\ref{fig:pareto-energy}). The only reordering is at the extreme low-energy end, where Gemma-3-4B (estimated 64\,J) rather than Qwen3-Coder-30B (measured 88\,J) is now the least energy-intensive model. The efficiency gap is so large that even a two-fold estimation error, in either direction, does not threaten it.
 
 \begin{table}[H]
 \caption{Measured (H200, NVML) versus FLOP-estimated energy per task for the two locally served open models. Active energy subtracts the measured idle draw. The ratio is measured-active over estimated.\label{tab:energy-validation}}
@@ -223,29 +227,6 @@ We benchmarked eight open-weight and frontier LLMs on label-clean vulnerability 
 
 \reftitle{References}
 
-\begin{thebibliography}{999}
-\bibitem{primevul} Ding, Y.; et al. Vulnerability Detection with Code Language Models: How Far Are We? In {\em Proceedings of the IEEE/ACM International Conference on Software Engineering (ICSE)}, 2025; arXiv:2403.18624.
-\bibitem{secvuleval} Ahmed, M.B.U.; et al. SecVulEval: Benchmarking LLMs for Real-World C/C++ Vulnerability Detection. {\em arXiv} 2025, arXiv:2505.19828.
-\bibitem{cyberseceval} Bhatt, M.; et al. Purple Llama CyberSecEval: A Secure Coding Benchmark for Language Models. {\em arXiv} 2023, arXiv:2312.04724.
-\bibitem{happe-review} Happe, A.; et al. Benchmarking Practices in LLM-driven Offensive Security: Testbeds, Metrics, and Experiment Design. {\em arXiv} 2025, arXiv:2504.10112.
-\bibitem{smallsec} Levi, M.; et al. Toward Cybersecurity-Expert Small Language Models. {\em arXiv} 2025, arXiv:2510.14113.
-\bibitem{neef} Neef, S.; et al. Evaluating LLMs for Real-World Web Vulnerability Detection. {\em arXiv} 2026, arXiv:2606.21397.
-\bibitem{dahiya} Dahiya, V.; et al. Are Frontier LLMs Ready for Cybersecurity? Evidence for Vertical Foundation Models from Dual-Mode Vulnerability Benchmarks. {\em arXiv} 2026, arXiv:2605.23243.
-\bibitem{croft} Croft, R.; Babar, M.A.; Kholoosi, M.M. Data Quality for Software Vulnerability Datasets. In {\em Proceedings of ICSE}, 2023; arXiv:2301.05456.
-\bibitem{luccioni} Luccioni, A.S.; Jernite, Y.; Strubell, E. Power Hungry Processing: Watts Driving the Cost of AI Deployment? In {\em Proceedings of ACM FAccT}, 2024; arXiv:2311.16863.
-\bibitem{samsi} Samsi, S.; et al. From Words to Watts: Benchmarking the Energy Costs of Large Language Model Inference. In {\em Proceedings of IEEE HPEC}, 2023; arXiv:2310.03003.
-\bibitem{mlperfpower} Tschand, A.; et al. MLPerf Power: Benchmarking the Energy Efficiency of Machine Learning Systems. {\em arXiv} 2024, arXiv:2410.12032.
-\bibitem{parttime} Part-time Power Measurements: nvidia-smi's Lack of Attention. {\em arXiv} 2023, arXiv:2312.02741.
-\bibitem{jegham} Jegham, N.; et al. How Hungry is AI? Benchmarking Energy, Water, and Carbon Footprint of LLM Inference. {\em arXiv} 2025, arXiv:2505.09598.
-\bibitem{helm} Liang, P.; et al. Holistic Evaluation of Language Models (HELM). {\em arXiv} 2022, arXiv:2211.09110.
-\bibitem{tokenpowerbench} Niu, C.; et al. TokenPowerBench: Benchmarking the Power Consumption of LLM Inference. {\em arXiv} 2025, arXiv:2512.03024.
-\bibitem{secllmholmes} Ullah, S.; et al. LLMs Cannot Reliably Identify and Reason About Security Vulnerabilities (Yet?): A Comprehensive Evaluation, Framework, and Benchmarks. In {\em Proceedings of the IEEE Symposium on Security and Privacy (S\&P)}, 2024; arXiv:2312.12575.
-\bibitem{steenhoek} Steenhoek, B.; et al. A Comprehensive Study of the Capabilities of Large Language Models for Vulnerability Detection. {\em arXiv} 2024, arXiv:2403.17218.
-\bibitem{reveal} Chakraborty, S.; Krishna, R.; Ding, Y.; Ray, B. Deep Learning based Vulnerability Detection: Are We There Yet? {\em IEEE Transactions on Software Engineering} 2022; arXiv:2009.07235.
-\bibitem{linevul} Fu, M.; Tantithamthavorn, C. LineVul: A Transformer-based Line-Level Vulnerability Prediction. In {\em Proceedings of the IEEE/ACM 19th International Conference on Mining Software Repositories (MSR)}, 2022.
-\bibitem{devign} Zhou, Y.; Liu, S.; Siow, J.; Du, X.; Liu, Y. Devign: Effective Vulnerability Identification by Learning Comprehensive Program Semantics via Graph Neural Networks. In {\em Advances in Neural Information Processing Systems (NeurIPS)}, 2019; arXiv:1909.03496.
-\bibitem{greenai} Schwartz, R.; Dodge, J.; Smith, N.A.; Etzioni, O. Green AI. {\em Communications of the ACM} {\bf 2020}, {\em 63}, 54--63.
-\bibitem{strubell} Strubell, E.; Ganesh, A.; McCallum, A. Energy and Policy Considerations for Deep Learning in NLP. In {\em Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics (ACL)}, 2019; pp. 3645--3650.
-\end{thebibliography}
+\bibliography{bibliography}
 
 \end{document}
