@@ -276,6 +276,7 @@ Archived at Zenodo: https://doi.org/{ZENODO_DOI}
 | `harness/scripts/` | Analysis entry points (see below) |
 | `figures/` | The two Pareto figures as they appear in the paper |
 | `main.pdf` | The manuscript |
+| `LICENSE` | CC BY 4.0, plus the carve-outs for third-party material |
 
 **Not included:** `harness/data/primevul/primevul_test.jsonl` (66 MB). The PrimeVul corpus
 belongs to its original authors and is re-downloaded rather than redistributed — see
@@ -355,9 +356,14 @@ def main() -> int:
         zf.write("pyproject.toml", "pyproject.toml")
         zf.write(".env.example", ".env.example")
         zf.write("main.pdf", "main.pdf")
+        zf.write("LICENSE", "LICENSE")
         zf.writestr("REPRODUCE.md", REPRODUCE_MD)
         n_rep = len(zf.namelist())
     print(f"  {OUT / 'reproduction.zip'}  ({n_rep} files)")
+
+    # Keep the loose copy in the submission folder identical to the canonical root file.
+    (OUT / "LICENSE").write_bytes(Path("LICENSE").read_bytes())
+    print(f"  {OUT / 'LICENSE'}")
 
     cl = OUT / "cover_letter.docx"
     cover_letter(cl)

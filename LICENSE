@@ -1,0 +1,98 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+The measurement harness, run configurations and raw run records, aggregated
+results, figures, and accompanying documentation released with the paper
+
+  "Open or Frontier? A Cost- and Energy-Aware Benchmark of Large Language
+   Models for Software Vulnerability Detection"
+
+are licensed under the Creative Commons Attribution 4.0 International License
+(CC BY 4.0).
+
+Copyright (c) 2026 Patrick Deininger and Wolfgang Slany.
+
+You are free to:
+
+  * Share  — copy and redistribute the material in any medium or format.
+  * Adapt  — remix, transform, and build upon the material for any purpose,
+             even commercially.
+
+The licensor cannot revoke these freedoms as long as you follow the license
+terms.
+
+Under the following terms:
+
+  * Attribution — You must give appropriate credit, provide a link to the
+    license, and indicate if changes were made. You may do so in any
+    reasonable manner, but not in any way that suggests the licensor endorses
+    you or your use.
+
+  * No additional restrictions — You may not apply legal terms or
+    technological measures that legally restrict others from doing anything
+    the license permits.
+
+Notices:
+
+  You do not have to comply with the license for elements of the material in
+  the public domain or where your use is permitted by an applicable exception
+  or limitation.
+
+  No warranties are given. The license may not give you all of the permissions
+  necessary for your intended use. For example, other rights such as publicity,
+  privacy, or moral rights may limit how you use the material.
+
+----------------------------------------------------------------------------
+Material NOT covered by this license
+----------------------------------------------------------------------------
+
+The grant above applies only to material authored by the copyright holders.
+The following are third-party works, are not ours to license, and remain under
+their own terms:
+
+  * The PrimeVul dataset. It is not redistributed here; obtain it from its
+    original authors (Ding et al., ICSE 2025) under their terms. See
+    harness/README.md.
+
+  * The MDPI LaTeX class and bibliography style files under Definitions/
+    (mdpi.cls, mdpi.bst, and the MDPI/ORCID logo assets), which are
+    Copyright (c) MDPI and are redistributed only as required to typeset the
+    manuscript.
+
+  * Third-party Python packages listed in harness/requirements.txt, and the
+    external tools invoked as baselines (Flawfinder; the CodeBERT model
+    fine-tuned on Devign), each under its own license.
+
+----------------------------------------------------------------------------
+How to cite
+----------------------------------------------------------------------------
+
+If you use this software or these results, please cite the accompanying paper
+and the archived deposit:
+
+  Deininger, P.; Slany, W. Open or Frontier? A Cost- and Energy-Aware
+  Benchmark of Large Language Models for Software Vulnerability Detection.
+  Computers 2026.
+
+  Archived at Zenodo: https://doi.org/10.5281/zenodo.21391074
+
+----------------------------------------------------------------------------
+Full legal code
+----------------------------------------------------------------------------
+
+The full legal text of the Creative Commons Attribution 4.0 International
+Public License is available at:
+
+  https://creativecommons.org/licenses/by/4.0/legalcode
+
+and a human-readable summary at:
+
+  https://creativecommons.org/licenses/by/4.0/
+
+By exercising the Licensed Rights (defined in the full legal code), You accept
+and agree to be bound by the terms and conditions of this Creative Commons
+Attribution 4.0 International Public License. To the extent this license may be
+interpreted as a contract, You are granted the Licensed Rights in
+consideration of Your acceptance of these terms and conditions, and the
+Licensor grants You such rights in consideration of benefits the Licensor
+receives from making the Licensed Material available under these terms and
+conditions.
