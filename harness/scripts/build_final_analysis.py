@@ -8,6 +8,7 @@ Writes: harness/runs/primevul_combined/enriched_metrics.csv and figures/*.pdf/pn
 from __future__ import annotations
 
 import json
+import math
 from collections import defaultdict
 from pathlib import Path
 
@@ -74,21 +75,55 @@ def enriched(by) -> pd.DataFrame:
 
 
 def pareto_fig(df, xcol, xlabel, fname):
-    fig, ax = plt.subplots(figsize=(6, 4.2))
+    """Balanced-accuracy vs efficiency scatter, log x.
+
+    No embedded title: the LaTeX \\caption carries it, and an in-figure title wide
+    enough to describe the energy axis gets clipped at both ends by tight_layout.
+    Point labels are placed on the side that keeps them inside the axes -- a fixed
+    up-and-right offset ran the rightmost model names off the panel.
+    """
+    fig, ax = plt.subplots(figsize=(6.4, 4.2))
     colors = {"open": "#1f77b4", "frontier": "#d62728"}
     for tier in ("open", "frontier"):
         sub = df[df["tier"] == tier]
         ax.scatter(sub[xcol], sub["bal_acc"], c=colors[tier], label=tier, s=60, zorder=3)
-    for _, r in df.iterrows():
-        ax.annotate(r["model"], (r[xcol], r["bal_acc"]),
-                    textcoords="offset points", xytext=(5, 4), fontsize=7.5)
-    ax.axhline(0.5, ls="--", c="grey", lw=1, zorder=1)
-    ax.text(df[xcol].min(), 0.505, "trivial baseline (0.5)", fontsize=7, color="grey")
+
     ax.set_xscale("log")
+    # Pad the log x-range so labels have room inside the panel.
+    lo, hi = df[xcol].min(), df[xcol].max()
+    pad = (hi / lo) ** 0.10
+    x0, x1 = lo / pad, hi * pad
+    ax.set_xlim(x0, x1)
+
+    def xfrac(x):  # position within the padded log range, 0..1
+        return math.log10(x / x0) / math.log10(x1 / x0)
+
+    # Three frontier models sit within ~0.01 balanced accuracy of each other, so a
+    # single above/below flip is not enough -- step through vertical slots until one
+    # is free of every label already placed nearby on the same side.
+    SLOTS = (4, -11, -22, 15)
+    placed = []  # (on_right, y, xfrac, dy) for labels already positioned
+    for _, r in df.iterrows():
+        xf = xfrac(r[xcol])
+        on_right = xf > 0.60
+        dx, ha = (-8, "right") if on_right else (8, "left")
+        taken = {dy for prev_right, prev_y, prev_xf, dy in placed
+                 if prev_right == on_right
+                 and abs(r["bal_acc"] - prev_y) < 0.012
+                 and abs(xf - prev_xf) < 0.30}
+        dy = next((s for s in SLOTS if s not in taken), SLOTS[0])
+        ax.annotate(r["model"], (r[xcol], r["bal_acc"]), textcoords="offset points",
+                    xytext=(dx, dy), fontsize=7.5, ha=ha,
+                    va="bottom" if dy > 0 else "top")
+        placed.append((on_right, r["bal_acc"], xf, dy))
+
+    ax.axhline(0.5, ls="--", c="grey", lw=1, zorder=1)
+    # Right-aligned: the left end of the baseline collides with the lowest model.
+    ax.text(0.99, 0.012, "trivial baseline (0.5)", fontsize=7, color="grey",
+            ha="right", va="bottom", transform=ax.transAxes)
     ax.set_xlabel(xlabel)
     ax.set_ylabel("Balanced accuracy")
-    ax.set_title(f"Detection quality vs {xlabel}")
-    ax.legend(frameon=False)
+    ax.legend(frameon=False, loc="lower right", bbox_to_anchor=(1.0, 0.06))
     fig.tight_layout()
     FIGDIR.mkdir(exist_ok=True)
     for ext in ("pdf", "png"):
