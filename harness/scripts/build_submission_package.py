@@ -226,12 +226,13 @@ def cover_letter(out: Path) -> None:
 
     para("Declarations", bold=True)
     para(
-        "In accordance with journal policy, the manuscript discloses in Section 3 that generative AI "
-        "tools were used substantially in this work — in the research design, in implementing the "
-        "measurement harness, in running the experiments and in drafting the manuscript. All "
-        "AI-generated code is covered by the automated test suite, all quantitative results are produced "
-        "by the released harness from logged data, and the authors have reviewed and take full "
-        "responsibility for the content. No AI system was used to fabricate data or citations.")
+        "In accordance with journal policy, the manuscript carries a “Use of Artificial Intelligence” "
+        "statement in the back matter. In brief: DeepL and ChatGPT were used to translate words, "
+        "phrases and passages from German into English, and Claude was used to assist with drafting and "
+        "revising portions of the text and with writing Python code. No text was published without "
+        "author review, and no figures, data or images were AI-generated or fabricated — all figures "
+        "derive from our own measurements, produced by the released harness from logged data. The "
+        "authors have reviewed and edited all outputs and take full responsibility for the content.")
     para(
         "All authors have read and agreed to the submitted version of the manuscript. The authors "
         "declare no conflicts of interest. This research was funded by the State of Styria (Land "

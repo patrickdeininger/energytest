@@ -111,9 +111,6 @@ We treat detection quality, cost, and energy as co-equal evaluation axes, and al
 \subsection{Harness and Reproducibility}\label{sec:harness}
 All experiments run through a purpose-built, test-driven harness (82 automated tests) with pluggable model backends and measurement meters. Each run records its resolved configuration, random seed, model versions, and a per-token price snapshot, and results are written incrementally so that long runs are crash-safe and resumable. Generation is deterministic (temperature~0, fixed maximum output length). As non-LLM reference points we additionally run, over the identical functions, Flawfinder~2.0.20 (a lexical C/C++ static analyzer, labeling a function vulnerable when it raises at least one hit at risk level~$\geq$1) and an off-the-shelf learned detector (a CodeBERT classifier fine-tuned on the Devign dataset~\citep{devign}, using its argmax prediction over inputs truncated to 512 tokens). The harness, configurations, and the exact sampled function identifiers are released with this paper (see Data Availability).
 
-\subsection{Use of Generative AI}
-In accordance with venue policy we disclose that generative AI tools were used substantially in this work: to assist with the research design, to implement the measurement harness, to run the experiments, and to draft this manuscript. All AI-generated code is covered by the automated test suite, all quantitative results are produced by the released harness from logged data, and the authors have reviewed and take responsibility for the content. No AI system was used to fabricate data or citations.
-
 \section{Results}\label{sec:results}
 
 \subsection{Choice of Primary Metric}
@@ -235,6 +232,10 @@ We benchmarked eight open-weight and frontier LLMs on label-clean vulnerability 
 \dataavailability{The measurement harness, all run configurations, the exact sampled function identifiers, and the aggregated results are openly available in Zenodo at \url{https://doi.org/10.5281/zenodo.21391074}. The PrimeVul dataset is available from its original authors~\citep{primevul}.}
 
 \conflictsofinterest{The authors declare no conflicts of interest. The funders had no role in the design of the study; in the collection, analyses, or interpretation of data; in the writing of the manuscript; or in the decision to publish the results.}
+
+\useofartificialintelligence{
+During the preparation of this manuscript, the authors used DeepL (Free) and ChatGPT (GPT-5.5, OpenAI) to translate words, phrases, and passages from German into English, and Claude (Opus 5 and Sonnet 5, Anthropic) to assist with drafting and revising portions of the text and with writing Python code. No text was published without author review, and no figures, data, or images were AI-generated or fabricated; all figures derive from the authors' own measurements. The authors have reviewed and edited all outputs and take full responsibility for the content of this publication.
+}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Optional
 
