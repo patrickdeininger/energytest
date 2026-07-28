@@ -118,6 +118,10 @@ def pareto_fig(df, xcol, xlabel, fname):
         placed.append((on_right, r["bal_acc"], xf, dy))
 
     ax.axhline(0.5, ls="--", c="grey", lw=1, zorder=1)
+    # Autoscale only sees the markers, so the label above the top-scoring model
+    # (DeepSeek-V3.2) lands on the top spine. Reserve a line's worth of headroom.
+    ylo, yhi = ax.get_ylim()
+    ax.set_ylim(ylo, yhi + 0.09 * (yhi - ylo))
     # Right-aligned: the left end of the baseline collides with the lowest model.
     ax.text(0.99, 0.012, "trivial baseline (0.5)", fontsize=7, color="grey",
             ha="right", va="bottom", transform=ax.transAxes)
