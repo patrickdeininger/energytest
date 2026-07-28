@@ -235,7 +235,7 @@ def cover_letter(out: Path) -> None:
         "authors have reviewed and edited all outputs and take full responsibility for the content.")
     para(
         "All authors have read and agreed to the submitted version of the manuscript. The authors "
-        "declare no conflicts of interest. This research was funded by the State of Styria (Land "
+        "declare no conflicts of interest. This research was funded in part by the State of Styria (Land "
         "Steiermark), Office of the Styrian Provincial Government, Department 12, within the PRISMA "
         "project, grant number ABT12-270413/2024. The funders had no role in the design of the study, "
         "in the collection, analyses or interpretation of data, in the writing of the manuscript, or in "
