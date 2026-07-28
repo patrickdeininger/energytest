@@ -29,3 +29,6 @@ Thumbs.db
 *.fls
 *.fdb_latexmk
 *.toc
+
+# Submission bundles: regenerable via harness/scripts/build_submission_package.py
+submission_MDPI/
