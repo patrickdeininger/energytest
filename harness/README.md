@@ -1,29 +1,10 @@
 # Benchmark Harness
 
-Measurement harness for the paper *Open-weight vs. frontier LLMs for vulnerability
-detection: a cost-, latency-, and energy-aware benchmark* (→ MDPI *Computers*).
+Measurement harness for the paper *Open or Frontier? A Cost- and Energy-Aware Benchmark of Large Language Models for Software Vulnerability Detection* (→ MDPI *Computers*).
 
 For each `(model, code sample)` it obtains a vulnerability-detection prediction
 and measures **accuracy, monetary cost, latency, and energy**, then reports
 accuracy-vs-efficiency **Pareto frontiers**.
-
-Design spec: `../docs/superpowers/specs/2026-07-04-benchmark-harness-design.md`.
-Research plan: `../research/Stage1_Research_Plan.md`.
-
-## Status
-
-- **M1 (done): dry-run pilot** — full pipeline on a mock backend + mock energy
-  meter: no API spend, no GPU.
-- **M2 (done): real API backend + real-dataset loader** — OpenAI-compatible
-  `APIBackend` (OpenAI / OpenRouter / vLLM) and a configurable-field JSONL loader
-  for PrimeVul (`func`/`target`/`idx`). Validated by unit tests with a fake SDK
-  (no spend) + a real smoke test. Concurrency, input truncation, and per-call
-  error capture added for long runs.
-- **M3 (built, GPU-pending): measured open-side energy** — `ZeusEnergyMeter`
-  reads the NVML cumulative energy counter (delta per call, idle-subtracted) for
-  models served locally by vLLM; `EstimatedEnergyMeter` (FLOP-based) covers the
-  frontier/API side. Meter logic is unit-tested via an injected reader; the real
-  `NvmlEnergyReader` runs on a rented cloud GPU. See below.
 
 ## Measured energy on a cloud GPU (M3)
 
@@ -94,23 +75,8 @@ harness/
   report/report.py     # per-model metrics CSV + Pareto plots
   run.py               # CLI entry point
   configs/             # run configs (pilot_dryrun.yaml)
-  tests/               # pytest suite (34 tests)
+  tests/               # pytest suite (82 tests)
 ```
-
-Backends and meters are registered by name in `config.py`; the runner never
-changes when we add real ones.
-
-## Roadmap
-
-- **M2** — `APIBackend` (OpenRouter + native Anthropic/OpenAI/Gemini) + real
-  PrimeVul subset loader → small real frontier run (needs API keys). Real cost +
-  latency + tokens.
-- **M3** — rent a GPU → `LocalBackend` (vLLM) + `ZeusEnergyMeter` (NVML counter)
-  + `CodeCarbonMeter` (full node) → **measured** open-side energy;
-  `EstimatedEnergyMeter` (FLOP-based) for the frontier side. Sanity-check
-  J/output-token vs the Samsi et al. ~3–4 J/token anchor.
-- **M4** — full model roster + VD-Score (FPR≤0.5%) & pairwise metrics +
-  SecVulEval / SecLLMHolmes + the offensive-agentic case study (EpG, pass@k).
 
 ## Reproducibility
 

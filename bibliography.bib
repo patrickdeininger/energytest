@@ -3,30 +3,37 @@
 % Rendered with Definitions/mdpi.bst (numeric, order-of-citation).
 % Notes on conventions used here so future edits stay consistent:
 %   * Titles are double-braced to preserve the casing of acronyms/proper nouns.
-%   * "and others" reproduces the "et al." abbreviation of the source entries.
+%   * Author lists are given in full (verified against arXiv/Crossref/dblp).
+%     MDPI permits "et al." only beyond 10 authors, so "and others" appears only
+%     after the tenth name, and only for cyberseceval (21), mlperfpower (26) and
+%     helm (50). Note samsi has exactly 10 -- all ten must be listed.
 %   * booktitle must NOT start with "Proceedings of": mdpi.bst already prepends
 %     "In Proceedings of the ...", so a leading "Proceedings of" doubles it.
 %   * Multi-initial first names need spaces (e.g. "M. B. U."); mdpi.bst
 %     abbreviates each whitespace-separated token, so "M.B.U." collapses to "M.".
 
 @inproceedings{primevul,
-  author    = {Ding, Y. and others},
+  author    = {Ding, Y. and Fu, Y. and Ibrahim, O. and Sitawarin, C. and Chen, X. and Alomair, B. and Wagner, D. and Ray, B. and Chen, Y.},
   title     = {{Vulnerability Detection with Code Language Models: How Far Are We?}},
   booktitle = {IEEE/ACM International Conference on Software Engineering (ICSE)},
   year      = {2025},
+  pages     = {1729--1741},
+  doi       = {10.1109/ICSE55347.2025.00038},
   note      = {arXiv:2403.18624}
 }
 
-@article{secvuleval,
-  author  = {Ahmed, M. B. U. and others},
-  title   = {{SecVulEval: Benchmarking LLMs for Real-World C/C++ Vulnerability Detection}},
-  journal = {arXiv},
-  year    = {2025},
-  note    = {arXiv:2505.19828}
+@inproceedings{secvuleval,
+  author    = {Ahmed, M. B. U. and Shiri Harzevili, N. and Shin, J. and Pham, H. V. and Wang, S.},
+  title     = {{SecVulEval: Context-Aware Benchmarking of LLMs for Vulnerability Detection}},
+  booktitle = {3rd ACM International Conference on AI-Powered Software (AIware)},
+  year      = {2026},
+  pages     = {388--396},
+  doi       = {10.1145/3805760.3814932},
+  note      = {arXiv:2505.19828}
 }
 
 @article{cyberseceval,
-  author  = {Bhatt, M. and others},
+  author  = {Bhatt, M. and Chennabasappa, S. and Nikolaidis, C. and Wan, S. and Evtimov, I. and Gabi, D. and Song, D. and Ahmad, F. and Aschermann, C. and Fontana, L. and others},
   title   = {{Purple Llama CyberSecEval: A Secure Coding Benchmark for Language Models}},
   journal = {arXiv},
   year    = {2023},
@@ -34,7 +41,7 @@
 }
 
 @article{happe-review,
-  author  = {Happe, A. and others},
+  author  = {Happe, A. and Cito, J.},
   title   = {{Benchmarking Practices in LLM-driven Offensive Security: Testbeds, Metrics, and Experiment Design}},
   journal = {arXiv},
   year    = {2025},
@@ -42,7 +49,7 @@
 }
 
 @article{smallsec,
-  author  = {Levi, M. and others},
+  author  = {Levi, M. and Ohayon, D. and Blobstein, A. and Sagi, R. and Molloy, I. and Allouche, Y.},
   title   = {{Toward Cybersecurity-Expert Small Language Models}},
   journal = {arXiv},
   year    = {2025},
@@ -50,15 +57,15 @@
 }
 
 @article{neef,
-  author  = {Neef, S. and others},
+  author  = {Neef, S. and Jungnickel, L. and Buchholz, A. B. and Spence, V. and Gonzalez, V. B.},
   title   = {{Evaluating LLMs for Real-World Web Vulnerability Detection}},
   journal = {arXiv},
   year    = {2026},
-  note    = {arXiv:2606.21397}
+  note    = {arXiv:2606.21397; to appear at the AI\&CCPS Workshop, ARES 2026}
 }
 
 @article{dahiya,
-  author  = {Dahiya, V. and others},
+  author  = {Dahiya, V. and Nehra, S. and Dholariya, V. and Shangari, B. and Khatri, C.},
   title   = {{Are Frontier LLMs Ready for Cybersecurity? Evidence for Vertical Foundation Models from Dual-Mode Vulnerability Benchmarks}},
   journal = {arXiv},
   year    = {2026},
@@ -82,30 +89,36 @@
 }
 
 @inproceedings{samsi,
-  author    = {Samsi, S. and others},
+  author    = {Samsi, S. and Zhao, D. and McDonald, J. and Li, B. and Michaleas, A. and Jones, M. and Bergeron, W. and Kepner, J. and Tiwari, D. and Gadepally, V.},
   title     = {{From Words to Watts: Benchmarking the Energy Costs of Large Language Model Inference}},
   booktitle = {IEEE High Performance Extreme Computing Conference (HPEC)},
   year      = {2023},
+  pages     = {1--9},
+  doi       = {10.1109/HPEC58863.2023.10363447},
   note      = {arXiv:2310.03003}
 }
 
-@article{mlperfpower,
-  author  = {Tschand, A. and others},
-  title   = {{MLPerf Power: Benchmarking the Energy Efficiency of Machine Learning Systems}},
-  journal = {arXiv},
-  year    = {2024},
-  note    = {arXiv:2410.12032}
+@inproceedings{mlperfpower,
+  author    = {Tschand, A. and Rajan, A. T. R. and Idgunji, S. and Ghosh, A. and Holleman, J. and Kiraly, C. and Ambalkar, P. and Borkar, R. and Chukka, R. and Cockrell, T. and others},
+  title     = {{MLPerf Power: Benchmarking the Energy Efficiency of Machine Learning Systems from Microwatts to Megawatts for Sustainable AI}},
+  booktitle = {IEEE International Symposium on High-Performance Computer Architecture (HPCA)},
+  year      = {2025},
+  pages     = {1201--1216},
+  doi       = {10.1109/HPCA61900.2025.00092},
+  note      = {arXiv:2410.12032}
 }
 
-@article{parttime,
-  title   = {{Part-time Power Measurements: nvidia-smi's Lack of Attention}},
-  journal = {arXiv},
-  year    = {2023},
-  note    = {arXiv:2312.02741}
+@inproceedings{parttime,
+  author    = {Yang, Z. and Adamek, K. and Armour, W.},
+  title     = {{Accurate and Convenient Energy Measurements for GPUs: A Detailed Study of NVIDIA GPU's Built-In Power Sensor}},
+  booktitle = {International Conference for High Performance Computing, Networking, Storage and Analysis (SC24)},
+  year      = {2024},
+  pages     = {1--17},
+  note      = {arXiv:2312.02741}
 }
 
 @article{jegham,
-  author  = {Jegham, N. and others},
+  author  = {Jegham, N. and Abdelatti, M. and Koh, C. Y. and Elmoubarki, L. and Hendawi, A.},
   title   = {{How Hungry is AI? Benchmarking Energy, Water, and Carbon Footprint of LLM Inference}},
   journal = {arXiv},
   year    = {2025},
@@ -113,34 +126,38 @@
 }
 
 @article{helm,
-  author  = {Liang, P. and others},
-  title   = {{Holistic Evaluation of Language Models (HELM)}},
-  journal = {arXiv},
-  year    = {2022},
+  author  = {Liang, P. and Bommasani, R. and Lee, T. and Tsipras, D. and Soylu, D. and Yasunaga, M. and Zhang, Y. and Narayanan, D. and Wu, Y. and Kumar, A. and others},
+  title   = {{Holistic Evaluation of Language Models}},
+  journal = {Transactions on Machine Learning Research},
+  year    = {2023},
   note    = {arXiv:2211.09110}
 }
 
-@article{tokenpowerbench,
-  author  = {Niu, C. and others},
-  title   = {{TokenPowerBench: Benchmarking the Power Consumption of LLM Inference}},
-  journal = {arXiv},
-  year    = {2025},
-  note    = {arXiv:2512.03024}
+@inproceedings{tokenpowerbench,
+  author    = {Niu, C. and Zhang, W. and Li, J. and Zhao, Y. and Wang, T. and Wang, X. and Chen, Y.},
+  title     = {{TokenPowerBench: Benchmarking the Power Consumption of LLM Inference}},
+  booktitle = {AAAI Conference on Artificial Intelligence},
+  year      = {2026},
+  pages     = {32582--32590},
+  doi       = {10.1609/aaai.v40i38.40535},
+  note      = {arXiv:2512.03024}
 }
 
 @inproceedings{secllmholmes,
-  author    = {Ullah, S. and others},
+  author    = {Ullah, S. and Han, M. and Pujar, S. and Pearce, H. and Coskun, A. and Stringhini, G.},
   title     = {{LLMs Cannot Reliably Identify and Reason About Security Vulnerabilities (Yet?): A Comprehensive Evaluation, Framework, and Benchmarks}},
   booktitle = {IEEE Symposium on Security and Privacy (S\&P)},
   year      = {2024},
+  pages     = {862--880},
+  doi       = {10.1109/SP54263.2024.00210},
   note      = {arXiv:2312.12575}
 }
 
 @article{steenhoek,
-  author  = {Steenhoek, B. and others},
-  title   = {{A Comprehensive Study of the Capabilities of Large Language Models for Vulnerability Detection}},
+  author  = {Steenhoek, B. and Rahman, M. M. and Roy, M. K. and Alam, M. S. and Tong, H. and Das, S. and Barr, E. T. and Le, W.},
+  title   = {{To Err is Machine: Vulnerability Detection Challenges LLM Reasoning}},
   journal = {arXiv},
-  year    = {2024},
+  year    = {2025},
   note    = {arXiv:2403.17218}
 }
 
@@ -159,12 +176,81 @@
   year      = {2022}
 }
 
+@inproceedings{bigvul,
+  author    = {Fan, J. and Li, Y. and Wang, S. and Nguyen, T. N.},
+  title     = {{A C/C++ Code Vulnerability Dataset with Code Changes and CVE Summaries}},
+  booktitle = {17th International Conference on Mining Software Repositories (MSR)},
+  year      = {2020},
+  pages     = {508--512}
+}
+
+@inproceedings{diversevul,
+  author    = {Chen, Y. and Ding, Z. and Alowain, L. and Chen, X. and Wagner, D.},
+  title     = {{DiverseVul: A New Vulnerable Source Code Dataset for Deep Learning Based Vulnerability Detection}},
+  booktitle = {26th International Symposium on Research in Attacks, Intrusions and Defenses (RAID)},
+  year      = {2023},
+  pages     = {654--668},
+  note      = {arXiv:2304.00409}
+}
+
+@misc{codeql,
+  author       = {{GitHub, Inc.}},
+  title        = {{CodeQL Documentation}},
+  howpublished = {\url{https://codeql.github.com/docs/}},
+  year         = {2026},
+  note         = {(accessed on 28 July 2026)}
+}
+
 @inproceedings{devign,
   author    = {Zhou, Y. and Liu, S. and Siow, J. and Du, X. and Liu, Y.},
   title     = {{Devign: Effective Vulnerability Identification by Learning Comprehensive Program Semantics via Graph Neural Networks}},
   booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
   year      = {2019},
   note      = {arXiv:1909.03496}
+}
+
+@article{falk,
+  author  = {Falk, S. and Ekchajzer, D. and Pirson, T. and Lees-Perasso, E. and Wattiez, A. and Biber-Freudenberger, L. and Luccioni, S. and van Wynsberghe, A.},
+  title   = {{More than Carbon: Cradle-to-Grave Environmental Impacts of GenAI Training on the Nvidia A100 GPU}},
+  journal = {Environmental Impact Assessment Review},
+  year    = {2026},
+  volume  = {121},
+  pages   = {108525},
+  doi     = {10.1016/j.eiar.2026.108525}
+}
+
+@misc{nvidiapcf,
+  author       = {{NVIDIA Corporation}},
+  title        = {{Product Carbon Footprint Summary: NVIDIA HGX H100}},
+  year         = {2025},
+  howpublished = {\url{https://images.nvidia.com/aem-dam/Solutions/documents/HGX-H100-PCF-Summary.pdf}},
+  note         = {(accessed on 28 July 2026)}
+}
+
+@techreport{iso21031,
+  author      = {{ISO/IEC}},
+  title       = {{Information Technology --- Software Carbon Intensity (SCI) Specification}},
+  number      = {ISO/IEC 21031:2024},
+  institution = {International Organization for Standardization},
+  address     = {Geneva, Switzerland},
+  year        = {2024}
+}
+
+@article{bloomcarbon,
+  author  = {Luccioni, A. S. and Viguier, S. and Ligozat, A.-L.},
+  title   = {{Estimating the Carbon Footprint of BLOOM, a 176B Parameter Language Model}},
+  journal = {Journal of Machine Learning Research},
+  year    = {2023},
+  volume  = {24},
+  number  = {253},
+  pages   = {1--15}
+}
+
+@misc{leobet,
+  author = {L{\'e}obet, M. and Lavall{\'e}e, P.-F. and Lorr{\'e}, J.-P.},
+  title  = {{Life Cycle Assessment of Pre-training the Lucie 7B Open-Source Large Language Model on the Jean Zay Supercomputer}},
+  year   = {2026},
+  note   = {arXiv:2607.05408}
 }
 
 @article{greenai,
