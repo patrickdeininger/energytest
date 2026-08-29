@@ -126,6 +126,16 @@ def main() -> int:
             if len(ids) < 100:
                 print(f"   {m:20s} {base[m]:8.4f} {bv:8.4f} {'--':>8s} {'--':>8s} {len(ids):9d}")
                 continue
+            # A prompt variant shares all 1549 tasks with the anchor, so the paired
+            # bootstrap is the right test. A REDRAW does not: its common set is the
+            # 549 positives plus the ~5% of negatives that happen to recur, so a
+            # paired statistic over it measures re-running the positives, not the
+            # effect of drawing different negatives. For draws the honest figure is
+            # the unpaired difference of full-sample balanced accuracies.
+            if "draw" in label:
+                print(f"   {m:20s} {base[m]:8.4f} {bv:8.4f} {bv-base[m]:+8.4f} "
+                      f"{'unpaired':>8s} {len(ids):8d}")
+                continue
             labels = [anchor[m][t]["label"] for t in ids]
             r = paired_bootstrap_bal_acc_diff(
                 labels, [var[m][t]["prediction"] for t in ids],
