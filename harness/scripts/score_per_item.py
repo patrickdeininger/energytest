@@ -62,10 +62,10 @@ def main() -> int:
               "'safe' for everything. That is a thresholding artifact, not an "
               "absence of signal -- read the AUC below.")
 
-    from sklearn.metrics import average_precision_score, roc_auc_score
+    from harness.analysis.stats import average_precision, roc_auc
 
-    auc = roc_auc_score(ys, ss)
-    ap_score = average_precision_score(ys, ss)
+    auc = roc_auc(ys, ss)
+    ap_score = average_precision(ys, ss)
     print(f"\nROC-AUC {auc:.4f}   (0.5 = no ranking signal)")
     print(f"PR-AUC  {ap_score:.4f}   (baseline = positive rate {n_pos/len(ys):.4f})")
 

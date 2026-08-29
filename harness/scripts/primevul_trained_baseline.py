@@ -236,10 +236,10 @@ def main() -> int:
     # ranking, so always report the threshold-free view. Without this we would have
     # concluded "trained detectors are near-random on PrimeVul" from what was
     # actually a class-imbalance training failure.
-    from sklearn.metrics import average_precision_score, roc_auc_score
+    from harness.analysis.stats import average_precision, roc_auc
 
-    out["roc_auc"] = float(roc_auc_score(ys, probs))
-    out["pr_auc"] = float(average_precision_score(ys, probs))
+    out["roc_auc"] = float(roc_auc(list(ys), list(probs)))
+    out["pr_auc"] = float(average_precision(list(ys), list(probs)))
     out["score_min"], out["score_max"] = float(probs.min()), float(probs.max())
 
     best = None

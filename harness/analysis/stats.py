@@ -157,3 +157,70 @@ def paired_bootstrap_bal_acc_diff(labels, preds_a, preds_b, n_boot: int = 10000,
         "ci_hi": float(ci_hi),
         "p_two_sided": float(min(1.0, p)),
     }
+
+
+def roc_auc(labels, scores) -> float:
+    """Area under the ROC curve, computed from ranks (Mann-Whitney U).
+
+    Dependency-free on purpose: the reproduction package must run on a bare GPU
+    pod, and pulling scikit-learn (and scipy, and numpy) in for one closed-form
+    statistic is not worth it.
+
+    Ties contribute exactly one half, matching scikit-learn, via average ranks.
+    """
+    pairs = sorted(zip(scores, labels))
+    n = len(pairs)
+    n_pos = sum(int(y) for _, y in pairs)
+    n_neg = n - n_pos
+    if n_pos == 0 or n_neg == 0:
+        raise ValueError("ROC-AUC is undefined unless both classes are present")
+
+    # Average ranks within groups of equal score, so ties split evenly.
+    ranks = [0.0] * n
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and pairs[j + 1][0] == pairs[i][0]:
+            j += 1
+        avg = (i + j) / 2.0 + 1.0  # ranks are 1-based
+        for k in range(i, j + 1):
+            ranks[k] = avg
+        i = j + 1
+
+    rank_sum = sum(r for r, (_, y) in zip(ranks, pairs) if int(y) == 1)
+    return (rank_sum - n_pos * (n_pos + 1) / 2.0) / (n_pos * n_neg)
+
+
+def average_precision(labels, scores) -> float:
+    """Average precision, the step-wise sum used by scikit-learn:
+    AP = sum_k (R_k - R_{k-1}) * P_k over thresholds, descending by score.
+
+    Unlike ROC-AUC its no-signal floor is the positive rate, not 0.5, which is
+    why it is the more informative of the two on an imbalanced problem.
+    """
+    pairs = sorted(zip(scores, labels), key=lambda t: -t[0])
+    n_pos = sum(int(y) for _, y in pairs)
+    if n_pos == 0:
+        return 0.0
+
+    ap = 0.0
+    tp = fp = 0
+    prev_recall = 0.0
+    i = 0
+    while i < len(pairs):
+        # Consume the whole tie group before measuring: a threshold cannot
+        # separate items that share a score.
+        j = i
+        while j + 1 < len(pairs) and pairs[j + 1][0] == pairs[i][0]:
+            j += 1
+        for k in range(i, j + 1):
+            if int(pairs[k][1]) == 1:
+                tp += 1
+            else:
+                fp += 1
+        recall = tp / n_pos
+        precision = tp / (tp + fp)
+        ap += (recall - prev_recall) * precision
+        prev_recall = recall
+        i = j + 1
+    return ap
