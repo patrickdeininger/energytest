@@ -22,6 +22,11 @@ set -euo pipefail
 
 MODEL="$1"; CONFIG="$2"; TAG="$3"; shift 3 || true
 LEVELS="${LEVELS:-1,8,32,64}"
+# Bare idle draw in watts, measured with NO model resident (setup_gpu.sh prints it).
+# Set this. If left empty the sweep measures idle itself, but it can only do so once
+# vLLM is already up, which subtracts MODEL-RESIDENT idle -- a higher baseline than the
+# bare idle the published measurements subtracted, making the numbers non-comparable.
+IDLE_W="${IDLE_W:-}"
 # 4096 is ample (prompts are capped at 8000 chars, roughly 2500 tokens, plus 64 out)
 # and leaves far more VRAM for KV cache, which is what high concurrency needs.
 MAXLEN="${MAXLEN:-4096}"
@@ -59,8 +64,17 @@ sleep 20
 nvidia-smi --query-gpu=power.draw,memory.used --format=csv,noheader
 
 echo ">> sweeping concurrency levels: $LEVELS"
+IDLE_ARG=()
+if [ -n "$IDLE_W" ]; then
+  IDLE_ARG=(--idle-w "$IDLE_W")
+  echo "   subtracting bare idle draw of ${IDLE_W} W (matches the published methodology)"
+else
+  echo "   WARNING: IDLE_W unset -- idle will be measured with the model already resident,"
+  echo "   which is a higher baseline than the published runs subtracted. Set IDLE_W to the"
+  echo "   bare idle watts printed by setup_gpu.sh if you want comparable numbers."
+fi
 python -m harness.scripts.concurrency_sweep \
-  --config "$CONFIG" --levels "$LEVELS" --tag "$TAG"
+  --config "$CONFIG" --levels "$LEVELS" --tag "$TAG" "${IDLE_ARG[@]}"
 
 echo ">> done. Results: harness/runs/concurrency_sweep/${TAG}.json"
 echo ">> stopping vLLM."
