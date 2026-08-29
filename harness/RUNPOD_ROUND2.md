@@ -13,15 +13,34 @@ stack RunPod's H200 image supported. That stack **cannot serve Gemma-3** (it fai
 vLLM 0.10.2 — they are mutually exclusive). That is the sole reason Gemma-3-4B's energy is
 estimated rather than measured in the paper.
 
-So pick a pod image and check its CUDA version:
+### Never run a bare `pip install vllm`
 
-| Driver CUDA | Stack | What you get |
-|---|---|---|
-| **≥ 12.9** | latest vLLM (≥ 0.11) | **Path A — do this.** All three models measurable on one stack, so G2 is unblocked *and* Qwen/Llama get re-measured on the same stack, which also replaces the `"source": "pasted"` energy JSON with harness-generated output. |
-| 12.8 only | pinned torch 2.8.0 cu128 + vLLM 0.10.2 | Path B. Qwen and Llama only; Gemma stays estimated. Reproduces the published setup exactly. |
+Confirmed the hard way on 2026-08-29: the RunPod H200 driver reports CUDA **12.9**
+(`found version 12090`), and the current release of vLLM ships a torch built against CUDA
+**13.x**. Installing it produces, deep inside the EngineCore subprocess:
 
-Prefer Path A. If you take it, **re-run all three sweeps on it** so the numbers are mutually
-comparable — do not mix a Path A Gemma measurement with the old Path B Qwen/Llama numbers.
+```
+RuntimeError: The NVIDIA driver on your system is too old (found version 12090).
+```
+
+The rule is therefore not "newer CUDA means take the newer stack". It is: **pin torch to a
+build matching the driver, then install vLLM under a constraint that forbids it from
+upgrading torch.** `harness/scripts/setup_gpu.sh` does exactly that (torch 2.8.0 `cu128`,
+then `vllm<0.11` constrained to that torch). A `cu128` build runs fine on a 12.9 driver —
+CUDA minor versions are forward compatible — so this stack is correct for this pod, and it is
+also the stack the published measurements used.
+
+That leaves Gemma-3 as the open question, because vLLM 0.10.2 is where the
+`rope_scaling 'rope_type'` failure lives. Take it in this order:
+
+1. **`setup_gpu.sh`, then run Qwen and Llama.** This is G1, the high-value experiment, on a
+   known-good stack. Do not let Gemma block it.
+2. **Then attempt Gemma** (§3a below). If it fails, Gemma stays FLOP-estimated, which is the
+   paper's current position — nothing breaks.
+
+If Gemma *does* serve on a newer stack, do not mix epochs: re-run Qwen and Llama on that same
+stack so all three are comparable, or report Gemma separately with the stack difference
+disclosed.
 
 ### Pod spec
 
@@ -77,17 +96,17 @@ export HF_TOKEN=<your huggingface token>
 nvidia-smi                            # confirm the CUDA version you planned for
 ```
 
-**Path A (CUDA ≥ 12.9):**
 ```bash
-pip install -q -r harness/requirements.txt pynvml accelerate
-pip install -q vllm                   # latest; pulls a matching torch
+# If a bare `pip install vllm` was already run, clear it out first -- otherwise its
+# CUDA-13 torch survives and every serve dies in the EngineCore subprocess.
+pip uninstall -y vllm torch torchvision torchaudio
+
+bash harness/scripts/setup_gpu.sh     # pins torch 2.8.0 cu128 + vllm<0.11, verifies NVML
+pip install -q accelerate             # needed by the G3 Trainer
 ```
 
-**Path B (CUDA 12.8):**
-```bash
-bash harness/scripts/setup_gpu.sh     # pins torch 2.8.0 cu128 + vLLM <0.11
-pip install -q accelerate
-```
+`setup_gpu.sh` fails loudly if torch cannot see the GPU, so a bad install cannot silently
+reach the runs.
 
 Verify before spending time on a download:
 
@@ -119,10 +138,6 @@ Run smallest first — if something is wrong with the setup, you find out in 8 m
 than after a 70 GB download.
 
 ```bash
-# G2: Gemma-3-4B  (~8 min + small download)   -- PATH A ONLY
-bash harness/scripts/run_concurrency_sweep.sh google/gemma-3-4b-it \
-     harness/configs/sweep_gemma.yaml gemma
-
 # G1a: Qwen3-Coder-30B  (~13 min + ~60 GB download)
 bash harness/scripts/run_concurrency_sweep.sh Qwen/Qwen3-Coder-30B-A3B-Instruct \
      harness/configs/sweep_qwen.yaml qwen
@@ -152,6 +167,41 @@ If disk runs short despite the 200 GB volume:
 du -sh /workspace/hf/hub/*
 rm -rf /workspace/hf/hub/models--Qwen*      # after its sweep has finished
 ```
+
+---
+
+## 3a. G2 — Gemma-3-4B, only after G1 has finished
+
+Gemma-3 is the one model vLLM 0.10.2 may refuse. Try these in order; each takes about two
+minutes to fail, and extra arguments pass straight through to `vllm serve`.
+
+```bash
+# (a) the pinned stack, as-is -- try it first, it costs nothing to find out
+bash harness/scripts/run_concurrency_sweep.sh google/gemma-3-4b-it \
+     harness/configs/sweep_gemma.yaml gemma
+
+# (b) transformers in the window that satisfies BOTH constraints:
+#     Gemma-3's config needs >=4.50; vLLM 0.10.2 needs <4.56 (4.56 drops
+#     all_special_tokens_extended, which vLLM calls). 4.55.x satisfies both.
+pip install -q "transformers==4.55.2"
+bash harness/scripts/run_concurrency_sweep.sh google/gemma-3-4b-it \
+     harness/configs/sweep_gemma.yaml gemma --enforce-eager
+
+# (c) newer vLLM WITHOUT letting it drag in a CUDA-13 torch
+pip install -q "vllm==0.11.0" --extra-index-url https://download.pytorch.org/whl/cu128 \
+    --constraint <(printf 'torch==2.8.0\n')
+python -c "import torch; assert torch.cuda.is_available(), 'torch lost the GPU -- roll back'"
+bash harness/scripts/run_concurrency_sweep.sh google/gemma-3-4b-it \
+     harness/configs/sweep_gemma.yaml gemma
+```
+
+Check `torch.cuda.is_available()` after any reinstall. If none of these work, stop: Gemma
+stays FLOP-estimated, which is what the manuscript already reports and discloses. It is a 4B
+model contributing one point to Figure 2 — not worth an hour of GPU time.
+
+If (c) succeeds, Gemma was measured on a different vLLM than Qwen and Llama. Either re-run
+those two on 0.11.0 as well, or tell me and I will disclose the stack difference in
+Section 4.6 rather than let it pass silently.
 
 ---
 
@@ -210,9 +260,9 @@ energy), §4.4 (baselines), Table 8 (break-even throughput), and the response le
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `rope_scaling 'rope_type'` on Gemma | vLLM 0.10.2 | Path A; this is exactly why G2 was blocked |
-| `CUDA driver too old` | plain `pip install vllm` pulled a newer-CUDA torch | Path B pinned install (`setup_gpu.sh`) |
-| `all_special_tokens_extended` AttributeError | `transformers` upgraded past 4.56 under vLLM 0.10.2 | pin `transformers<4.56`; never `pip install -U transformers` on Path B |
+| `rope_scaling 'rope_type'` on Gemma | transformers too old for Gemma-3 under vLLM 0.10.2 | Section 3a, options (b) then (c) |
+| `driver ... too old (found version 12090)` | bare `pip install vllm` pulled a CUDA-13 torch; this pod's driver is 12.9 | `pip uninstall -y vllm torch` then `setup_gpu.sh` |
+| `all_special_tokens_extended` AttributeError | `transformers` upgraded past 4.56 under vLLM 0.10.2 | pin `transformers==4.55.2`; never `pip install -U transformers` |
 | 401/403 on download | licence not accepted, or `HF_TOKEN` unset | accept on the model page with the same account |
 | NVML energy counter is 0 or errors | GPU older than Volta, or no NVML | stop; G1 cannot be measured |
 | vLLM OOM on Llama | not the FP8 repo, or `--max-model-len` too large | use `RedHatAI/...-FP8-dynamic`; the driver already caps at 4096 |
