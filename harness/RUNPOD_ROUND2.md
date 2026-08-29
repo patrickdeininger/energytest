@@ -29,13 +29,15 @@ then `vllm<0.11` constrained to that torch). A `cu128` build runs fine on a 12.9
 CUDA minor versions are forward compatible — so this stack is correct for this pod, and it is
 also the stack the published measurements used.
 
-That leaves Gemma-3 as the open question, because vLLM 0.10.2 is where the
-`rope_scaling 'rope_type'` failure lives. Take it in this order:
+**Gemma-3 does serve on this stack**, contrary to what we believed when the paper was
+submitted. The blocker was never vLLM itself but the `transformers` version: Gemma-3's config
+needs >= 4.50 to parse (below it vLLM raises `ValidationError for ModelConfig`), while vLLM
+0.10.2 needs < 4.56 (which drops `all_special_tokens_extended`). **4.55.2 satisfies both**,
+and `setup_gpu.sh` now pins it. Verified on an H200 pod, 2026-08-29.
 
-1. **`setup_gpu.sh`, then run Qwen and Llama.** This is G1, the high-value experiment, on a
-   known-good stack. Do not let Gemma block it.
-2. **Then attempt Gemma** (§3a below). If it fails, Gemma stays FLOP-estimated, which is the
-   paper's current position — nothing breaks.
+That means all three models run on one stack, so G2 is unblocked and the numbers stay
+mutually comparable. Run them in size order anyway — a failure costs 8 minutes rather than a
+70 GB download.
 
 If Gemma *does* serve on a newer stack, do not mix epochs: re-run Qwen and Llama on that same
 stack so all three are comparable, or report Gemma separately with the stack difference
