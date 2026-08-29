@@ -36,6 +36,9 @@ COMBINED = "harness/runs/primevul_combined/results.jsonl"
 LOCAL_TEST = "harness/data/primevul/primevul_test.jsonl"
 OUTDIR = Path("harness/runs/primevul_trained_baseline")
 PREVALENCE = 549 / 24788
+# The evaluated sample is fully specified by these two numbers plus the test split.
+SAMPLE_N = 2000
+SAMPLE_SEED = 12345
 
 
 def _norm(code: str) -> str:
@@ -68,7 +71,33 @@ def verify_mirror() -> None:
 
 
 def evaluated_ids() -> dict:
-    return {str(r["task_id"]): r["label"] for r in read_jsonl(COMBINED)}
+    """The 1549 evaluated task ids -> label.
+
+    Derived from the sampling specification (n=2000 stratified by label at seed
+    12345 over the test split), NOT read out of a previous run's results.jsonl.
+    The sample is deterministic, so regenerating it is exact, and it removes a
+    dependency on a gitignored run artifact that a fresh machine does not have.
+    When a results file IS present we cross-check against it, since a silent
+    divergence here would evaluate the baseline on a different set than the LLMs.
+    """
+    from harness.data.loader import load_jsonl
+
+    tasks = load_jsonl(
+        LOCAL_TEST, code_field="func", label_field="target", id_field="idx",
+        cwe_field="cwe", source="jsonl", n=SAMPLE_N, stratify_by="label", seed=SAMPLE_SEED,
+    )
+    derived = {str(t.id): t.label for t in tasks}
+
+    combined = Path(COMBINED)
+    if combined.exists():
+        from_run = {str(r["task_id"]): r["label"] for r in read_jsonl(combined)}
+        if set(from_run) != set(derived):
+            raise AssertionError(
+                f"derived sample ({len(derived)}) does not match the evaluated run "
+                f"({len(from_run)}); the baseline would be scored on a different set"
+            )
+        print(f"  sample cross-checked against {COMBINED}")
+    return derived
 
 
 def check_leakage(train_rows, eval_ids: set, eval_bodies: dict) -> dict:
