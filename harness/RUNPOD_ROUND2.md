@@ -8,9 +8,8 @@ pod session, and we already made it once.
 
 ## 0. The install rule
 
-Our published measurements used **vLLM 0.10.2** with torch 2.8.0 `cu128`. Gemma-3 is the one
-model that stack may refuse (`rope_scaling 'rope_type'`), which is the sole reason Gemma-3-4B's
-energy is estimated rather than measured in the paper. Everything else serves fine on it.
+Our published measurements used **vLLM 0.10.2** with torch 2.8.0 `cu128`. All three models
+serve on it, provided `transformers` is pinned correctly (see below).
 
 ### Never run a bare `pip install vllm`
 
@@ -39,9 +38,8 @@ That means all three models run on one stack, so G2 is unblocked and the numbers
 mutually comparable. Run them in size order anyway — a failure costs 8 minutes rather than a
 70 GB download.
 
-If Gemma *does* serve on a newer stack, do not mix epochs: re-run Qwen and Llama on that same
-stack so all three are comparable, or report Gemma separately with the stack difference
-disclosed.
+Do not upgrade `transformers` past 4.55.2 to fix some later problem: it will break vLLM
+0.10.2 for *every* model, not just Gemma.
 
 ### Pod spec
 
@@ -197,38 +195,23 @@ rm -rf /workspace/hf/hub/models--Qwen*      # after its sweep has finished
 
 ---
 
-## 3a. G2 — Gemma-3-4B, only after G1 has finished
+## 3a. G2 — Gemma-3-4B (~8 min)
 
-Gemma-3 is the one model vLLM 0.10.2 may refuse. Try these in order; each takes about two
-minutes to fail, and extra arguments pass straight through to `vllm serve`.
+With `transformers==4.55.2` pinned by `setup_gpu.sh`, Gemma-3 serves on the same stack as the
+other two, so this is just a third sweep rather than a special case:
 
 ```bash
-# (a) the pinned stack, as-is -- try it first, it costs nothing to find out
-bash harness/scripts/run_concurrency_sweep.sh google/gemma-3-4b-it \
-     harness/configs/sweep_gemma.yaml gemma
-
-# (b) transformers in the window that satisfies BOTH constraints:
-#     Gemma-3's config needs >=4.50; vLLM 0.10.2 needs <4.56 (4.56 drops
-#     all_special_tokens_extended, which vLLM calls). 4.55.x satisfies both.
-pip install -q "transformers==4.55.2"
-bash harness/scripts/run_concurrency_sweep.sh google/gemma-3-4b-it \
-     harness/configs/sweep_gemma.yaml gemma --enforce-eager
-
-# (c) newer vLLM WITHOUT letting it drag in a CUDA-13 torch
-pip install -q "vllm==0.11.0" --extra-index-url https://download.pytorch.org/whl/cu128 \
-    --constraint <(printf 'torch==2.8.0\n')
-python -c "import torch; assert torch.cuda.is_available(), 'torch lost the GPU -- roll back'"
-bash harness/scripts/run_concurrency_sweep.sh google/gemma-3-4b-it \
-     harness/configs/sweep_gemma.yaml gemma
+bash harness/scripts/run_concurrency_sweep.sh google/gemma-3-4b-it      harness/configs/sweep_gemma.yaml gemma
 ```
 
-Check `torch.cuda.is_available()` after any reinstall. If none of these work, stop: Gemma
-stays FLOP-estimated, which is what the manuscript already reports and discloses. It is a 4B
-model contributing one point to Figure 2 — not worth an hour of GPU time.
+Run it whenever it fits — it is small and fast. If it still fails, add `--enforce-eager`, and
+if that fails too, stop: Gemma stays FLOP-estimated, which is what the manuscript currently
+reports. It is a 4B model contributing one point to one figure and is not worth an hour of
+GPU time.
 
-If (c) succeeds, Gemma was measured on a different vLLM than Qwen and Llama. Either re-run
-those two on 0.11.0 as well, or tell me and I will disclose the stack difference in
-Section 4.6 rather than let it pass silently.
+**If it succeeds, tell me.** The manuscript states that Gemma could not be served under our
+local stack; that sentence becomes false and the efficiency champion moves from estimated to
+measured, which materially strengthens Figure 2.
 
 ---
 
