@@ -82,8 +82,18 @@ rsync -avz --exclude '.git' --exclude 'harness/runs' --exclude '*.pyc' \
   root@<POD_HOST>:/workspace/energytest/
 ```
 
-Either way, the PrimeVul test split (`harness/data/primevul/primevul_test.jsonl`, 66 MB) must
-end up on the pod — it is in the repo, so both options carry it.
+**The dataset is NOT in the repo.** `harness/data/primevul/` is gitignored (64 MB), so a
+clone gives you code without data and every run dies with `FileNotFoundError` on
+`primevul_test.jsonl`. Fetch it explicitly:
+
+```bash
+python -m harness.scripts.fetch_primevul
+```
+
+That pulls the split from a Hugging Face mirror and refuses to install it unless the row
+count and vulnerable count match the split the paper was measured on — a different revision
+would silently change the evaluated sample. (Option B's `rsync` carries the file already, so
+this step is only needed after a clone.)
 
 ---
 
