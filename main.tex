@@ -291,6 +291,41 @@ The efficiency separation is order-of-magnitude and insensitive to the choice of
 \subsection{Measured Versus Estimated Energy}\label{sec:energy-validation}
 For the two open models we could serve locally, we replace the FLOP estimate with direct H200 measurement and ask how far the estimate was off (Table~\ref{tab:energy-validation}).\footnote{The measurement is a dedicated $N=300$ run at concurrency~1. The ``Estimated'' column is the mean FLOP estimate from the main $N=1549$ run. Mean output length matched across the two (about 64 tokens), so the per-task comparison is not materially confounded by the differing subset, though the two are not the identical requests.} The estimate agrees with the measurement to roughly a factor of two (0.8$\times$ to 2.2$\times$), and it errs in opposite directions by architecture. For the sparse Qwen3-Coder-30B (3B active of 30B total) the estimate \emph{undershoots} the measurement by $2.2\times$ (40 against 88\,J). An active-parameter FLOP count captures neither the memory traffic of the full expert set nor the low GPU utilization of single-request decode. For the dense Llama-3.3-70B, served in FP8, the estimate \emph{overshoots}. At 944\,J it is about 1.3 times the 738\,J measurement (equivalently, the measurement is $0.8\times$ the estimate, as in Table~\ref{tab:energy-validation}), because the estimate is precision-agnostic while the measurement benefits from 8-bit arithmetic. Measured energy per output token, $1.4$\,J for the 3B-active MoE and $11.6$\,J for the 70B model, \emph{straddles} the roughly 3--4\,J/token reported for datacenter GPUs by Samsi et al.~\citep{samsi}. Neither value lands inside that band, but they bracket it and scale with model size as expected, which is the most this loose cross-hardware check can establish.
 
+\subsubsection*{Energy under batching, and which regime the estimator describes}
+The measurement above is taken at concurrency~1, which attributes energy to a single request cleanly but is a low-utilization regime no production API serves in. Reviewers reasonably objected that this weakens the comparison against FLOP-estimated frontier energy, whose calibration constant assumes batched datacenter serving. We therefore re-measured all three locally servable open models across a concurrency sweep on a dedicated H200, holding the model, prompt, sample and seed fixed and varying only the number of in-flight requests (Table~\ref{tab:concurrency}).
+
+Two results follow, and the second was not what we expected.
+
+First, the concurrency-1 measurements \emph{replicate}. On a different pod seven weeks later, with a different measured idle draw (77.38\,W against 75.63\,W), Llama-3.3-70B reproduces to $1.00\times$ (739.9 against 738\,J) and Qwen3-Coder-30B to $0.95\times$ (84.0 against 88\,J). We report this because the on-GPU numbers are the empirical anchor of the whole energy analysis, and their reproducibility had not previously been demonstrated.
+
+Second, and more consequentially, \textbf{the FLOP estimator describes single-request serving, not the batched serving it was calibrated for.} Against the concurrency-1 measurement it is accurate to within a factor of two for all three models ($0.48\times$ to $1.28\times$). Against the concurrency-64 measurement it is 5.4 to 16.9 times too high. Batching reduces energy per task by 10.0 to 22.1 times, because the fixed costs of weight movement and kernel launch are amortized over many concurrent requests while the card stays near its power ceiling either way. Since the six API-served models in Table~\ref{tab:results} are served at high batch, their FLOP-estimated energies --- and the carbon figures derived from them in Section~\ref{sec:discussion} --- are correspondingly overstated, most likely by around an order of magnitude.
+
+The overstatement is not uniform, and the pattern is interpretable. For the two dense models it is similar (16.9$\times$ for Gemma-3-4B, 12.7$\times$ for Llama-3.3-70B), but for the sparse mixture-of-experts Qwen3-Coder-30B it is only 5.4$\times$. The same architecture also benefits least from batching (11.2$\times$ against Gemma's 22.1$\times$). Both observations have one cause: an active-parameter FLOP count ignores the memory traffic of keeping the full 30B expert set resident, and that traffic does not amortize across a batch the way arithmetic does. The consequence for interpretation is direct. \emph{The energy ranking between the two smallest open models depends on the serving regime.} By FLOP estimate Qwen3-Coder-30B (40\,J) appears more efficient than Gemma-3-4B (64\,J); at concurrency~1 they are level (84.0 against 84.4\,J); and under batching Gemma is twice as efficient (3.8 against 7.5\,J). Any single energy figure per model is therefore incomplete without naming the regime it refers to, and we now state ours.
+
+This does not rescue the frontier estimates --- it complicates them. Because the correction factor depends on architecture, and frontier architectures are undisclosed, we cannot say whether a frontier model should be corrected by the dense factor or the sparse one. That is an additional source of uncertainty on those figures, not a resolution of the existing one. What survives is the comparison that carries the paper's argument: even under the least favourable combination of assumptions, correcting Claude-Sonnet-5 by the sparse factor and Gemma-3-4B by the measured batched value, the separation between the efficient open models and the frontier remains at least fiftyfold, which is larger than the threefold spread in the correction itself.
+
+\begin{table}[H]
+\caption{Measured energy per task and throughput against serving concurrency, H200, identical model, prompt, sample and seed at every level; only the number of in-flight requests varies. Energy is attributed at the run level (NVML counter read before and after each level) because per-request windows overlap under batching, and the measured bare idle draw of 77.38\,W is subtracted. \textbf{Est.}\ is the FLOP estimate from Table~\ref{tab:results}. The two rightmost columns are the batching benefit and the estimator's overstatement relative to batched serving.\label{tab:concurrency}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{lCCCCCCC}
+\toprule
+& \textbf{Est.\ (J)} & \textbf{$c$=1} & \textbf{$c$=8} & \textbf{$c$=32} & \textbf{$c$=64} & \textbf{$c$1/$c$64} & \textbf{Est./$c$64}\\
+\midrule
+\multicolumn{8}{l}{\emph{Energy per task (J)}}\\
+Gemma-3-4B (dense) & 64 & 84.4 & 12.2 & 5.1 & \textbf{3.8} & 22.1$\times$ & 16.9$\times$\\
+Qwen3-Coder-30B (MoE) & 40 & 84.0 & 24.1 & 11.0 & 7.5 & 11.2$\times$ & 5.4$\times$\\
+Llama-3.3-70B (dense, FP8) & 944 & 739.9 & 149.8 & 88.9 & 74.2 & 10.0$\times$ & 12.7$\times$\\
+\midrule
+\multicolumn{8}{l}{\emph{Throughput (tasks/s)}}\\
+Gemma-3-4B & -- & 3.03 & 20.4 & 48.6 & \textbf{64.2} & & \\
+Qwen3-Coder-30B & -- & 2.49 & 13.1 & 32.0 & 45.3 & & \\
+Llama-3.3-70B & -- & 0.67 & 3.66 & 6.54 & 7.96 & & \\
+\bottomrule
+\end{tabularx}
+\end{adjustwidth}
+\end{table}
+
 Two cautions bound what this validates. It confirms the estimator's structure and its energy-per-FLOP constant for small and mid-size \emph{open} models under single-request serving. It does not test the assumed frontier active-parameter count (Table~\ref{tab:models}), which is the dominant uncertainty in the frontier energy figures and cannot be measured here. The measurement is also taken at concurrency~1, a low-utilization and energy-pessimistic regime, while the estimator's constant is calibrated to batched datacenter serving, so exact agreement is not expected. The measurement-independent conclusion is narrower, and it is the one we rely on. The measured values move both open models only within their order of magnitude. They keep both models well below every frontier estimate and leave the Pareto frontier and the open-versus-frontier separation unchanged (Figure~\ref{fig:pareto-energy}). The only reordering is at the extreme low-energy end, where Gemma-3-4B (estimated 64\,J) rather than Qwen3-Coder-30B (measured 88\,J) is now the least energy-intensive model. The efficiency gap is so large that even a two-fold estimation error, in either direction, does not threaten it.
 
 \begin{table}[H]
@@ -372,25 +407,26 @@ Our cost figures are gateway list prices for every model, so they answer ``what 
 Take Llama-3.3-70B at FP8, the configuration we measured on the H200 and the strongest single-GPU on-premises candidate in our roster. Self-hosted cost per task is the hourly cost of the GPU divided by sustained throughput. We bracket the hourly cost at \$3.50 for an on-demand rented H200 and about \$1.46 for owned hardware, the latter from a \$32{,}000 card amortized over four years at 70\% utilization plus roughly 750\,W of draw at a 1.5 on-premises PUE and \$0.22/kWh, a representative European industrial tariff. Against the measured API list price of \$0.0000815 per task, break-even falls at:
 
 \begin{table}[H]
-\caption{Self-hosted cost per task for Llama-3.3-70B (FP8, single H200) against sustained throughput, compared with the \$0.0000815 per task measured at the pinned provider's list price. Throughput is the quantity a concurrency sweep pins down; the measurement at concurrency~1 in Section~\ref{sec:energy-validation} is a lower bound on it, not an operating point.\label{tab:breakeven}}
-\begin{tabularx}{\textwidth}{CCCCC}
+\caption{Self-hosted cost per task at the throughput each model actually sustains at concurrency~64 on one H200 (Table~\ref{tab:concurrency}), against the list price measured at its pinned provider. Rented assumes \$3.50/h on demand; owned assumes a \$32{,}000 card over four years at 70\% utilization plus power, about \$1.46/h. GPU-time only: engineering, operations and idle capacity are excluded, all of which favour the API further.\label{tab:breakeven}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{lCCCCCC}
 \toprule
-\textbf{Throughput (task/s)} & \textbf{Rented \$/task} & \textbf{vs API} & \textbf{Owned \$/task} & \textbf{vs API}\\
+\textbf{Model} & \textbf{Throughput (task/s)} & \textbf{API \$/task} & \textbf{Rented \$/task} & \textbf{vs API} & \textbf{Owned \$/task} & \textbf{vs API}\\
 \midrule
-1 & 0.00097 & 11.9$\times$ dearer & 0.00041 & 5.0$\times$ dearer\\
-5 & 0.00019 & 2.4$\times$ dearer & 0.00008 & break-even\\
-10 & 0.00010 & 1.2$\times$ dearer & 0.00004 & 0.50$\times$\\
-20 & 0.00005 & 0.60$\times$ & 0.00002 & 0.25$\times$\\
-50 & 0.00002 & 0.24$\times$ & 0.00001 & 0.10$\times$\\
+Gemma-3-4B & 64.2 & 0.0000435 & 0.0000151 & \textbf{0.35$\times$} & 0.0000063 & \textbf{0.15$\times$}\\
+Qwen3-Coder-30B & 45.3 & 0.0000603 & 0.0000215 & \textbf{0.36$\times$} & 0.0000090 & \textbf{0.15$\times$}\\
+Llama-3.3-70B & 8.0 & 0.0000815 & 0.0001222 & 1.50$\times$ dearer & 0.0000510 & \textbf{0.63$\times$}\\
 \bottomrule
 \end{tabularx}
+\end{adjustwidth}
 \end{table}
 
-Self-hosting therefore beats the API list price only above roughly 5 sustained tasks per second on owned hardware, or 12 on rented --- about 430{,}000 and 1.03 million functions per day respectively. Below that, the gateway is cheaper, and by a wide margin at low volume.
+The answer turns out to depend on model size, and it is more favourable to self-hosting than our earlier assumed-throughput estimate suggested. The two small models sustain 45--64 tasks per second on a single card and are three to seven times cheaper to self-host than to buy, on rented or owned hardware alike. Llama-3.3-70B sustains only 8.0, which straddles the break-even: at 5.0 tasks per second on owned hardware it is 1.6 times cheaper to self-host, but on a rented card it is 1.5 times \emph{dearer} than the gateway. So an organization with its own hardware should self-host any of these models; one renting by the hour should self-host the small ones and buy the 70B from an API.
 
-This complicates our own headline, and we would rather say so than not. The open models' \emph{price} advantage in Table~\ref{tab:results} is substantially a market fact: open weights are served by many competing providers at high batch efficiency (Section~\ref{sec:methods}), and that competition, not any property of the models, is what drives the hundred-fold price gap against the frontier. An organization that self-hosts at modest volume will not reproduce it. The \emph{energy} advantage is different in kind: it is a physical consequence of activating fewer parameters per token, it does not depend on who is selling the inference, and it is the one an on-premises deployment does inherit. This asymmetry is the strongest argument we can make for reporting energy alongside cost rather than treating price as a proxy for efficiency.
+This refines rather than overturns our headline. The open models' \emph{price} advantage in Table~\ref{tab:results} is still partly a market fact --- open weights are served by many competing providers at high batch efficiency (Section~\ref{sec:methods}), and that competition is not a property of the models --- but the measured throughput shows the advantage is not \emph{only} that. At the volumes a single card sustains, self-hosting the small open models really is several times cheaper than buying their inference, so the efficiency case survives the move from market price to physical cost. What does not survive is a blanket claim: for the 70B model on rented hardware, the gateway wins. The \emph{energy} advantage is different in kind: it is a physical consequence of activating fewer parameters per token, it does not depend on who is selling the inference, and it is the one an on-premises deployment does inherit. This asymmetry is the strongest argument we can make for reporting energy alongside cost rather than treating price as a proxy for efficiency.
 
-Two caveats bound the table. It prices GPU-time only, omitting engineering, operations and idle capacity, all of which favor the API further at low volume. And its throughput axis is the quantity our concurrency-1 measurement cannot supply; the entry that applies to a given deployment is the one at its achieved batch throughput.
+Two caveats bound the table. It prices GPU-time only, omitting engineering, operations and idle capacity, all of which favour the API further at low volume. And it assumes a deployment can saturate a card at concurrency~64; an organization scanning intermittently sits far to the left of these figures, where the gateway is cheaper for every model.
 
 Translating energy to carbon makes the environmental stake concrete while keeping it bounded. At a representative European grid intensity of 250\,gCO$_2$eq/kWh and a hyperscale power usage effectiveness (PUE) of 1.2, Gemma-3-4B's 64\,J per task is about 5\,mgCO$_2$eq, against roughly 210\,mgCO$_2$eq for Claude-Sonnet-5. Over a million-function codebase that is about 5\,kg against about 210\,kg, and about 10 against about 390\,kg at the world-average 475\,gCO$_2$eq/kWh.
 
