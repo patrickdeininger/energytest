@@ -1,17 +1,16 @@
 # RunPod runbook — round-2 GPU experiments (G1, G2, G3)
 
 Everything here is scripted and dry-run validated on CPU. Budget roughly **3–4 GPU-hours
-(~$12–15)**. Read §0 first: one choice there decides whether G2 is possible at all.
+(~$12–15)**. Read §0 first — it contains the one install mistake that will cost you a
+pod session, and we already made it once.
 
 ---
 
-## 0. Before you start the pod — the one decision that matters
+## 0. The install rule
 
-Our published measurements used **vLLM 0.10.2** on CUDA 12.8, because that was the newest
-stack RunPod's H200 image supported. That stack **cannot serve Gemma-3** (it fails with a
-`rope_scaling 'rope_type'` error; fixing it needs a newer `transformers`, which then breaks
-vLLM 0.10.2 — they are mutually exclusive). That is the sole reason Gemma-3-4B's energy is
-estimated rather than measured in the paper.
+Our published measurements used **vLLM 0.10.2** with torch 2.8.0 `cu128`. Gemma-3 is the one
+model that stack may refuse (`rope_scaling 'rope_type'`), which is the sole reason Gemma-3-4B's
+energy is estimated rather than measured in the paper. Everything else serves fine on it.
 
 ### Never run a bare `pip install vllm`
 
@@ -49,7 +48,8 @@ disclosed.
 - **Volume:** **200 GB** at `/workspace` — *not* the 100 GB we used last time. Qwen (~60 GB) and
   Llama-FP8 (~70 GB) together exceed 100 GB, which previously forced deleting one model
   between runs. 200 GB costs about $0.02/h and removes that whole failure mode.
-- **Template:** any PyTorch/CUDA image matching your chosen path.
+- **Template:** any recent PyTorch/CUDA image. The image's own CUDA version does not matter
+  much, because `setup_gpu.sh` installs a driver-matched torch over the top of it.
 
 ---
 
