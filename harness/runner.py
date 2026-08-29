@@ -89,7 +89,11 @@ def run(cfg: RunConfig, *, run_id: str, timestamp: str, git_sha: str = "unknown"
         backend = make_backend(spec, cfg.seed)
         stack = compose([make_meter(name, spec) for name in cfg.meters])
         for task in tasks:
-            prompt = build_prompt(task, max_code_chars=cfg.gen.max_code_chars)
+            prompt = build_prompt(
+                task,
+                max_code_chars=cfg.gen.max_code_chars,
+                variant=cfg.gen.prompt_variant,
+            )
             prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:12]
             for rep in range(cfg.reps):
                 if (spec.id, task.id, rep) in completed:
@@ -115,6 +119,8 @@ def run(cfg: RunConfig, *, run_id: str, timestamp: str, git_sha: str = "unknown"
             "label": task.label,
             "backend": spec.backend,
             "meter_set": cfg.meters,
+            "prompt_variant": cfg.gen.prompt_variant,
+            "max_output_tokens": cfg.gen.max_output_tokens,
         }
         try:
             resp, metrics = stack.measure(_make_call(backend, prompt, params))
@@ -126,6 +132,9 @@ def run(cfg: RunConfig, *, run_id: str, timestamp: str, git_sha: str = "unknown"
                 "raw_output": resp.text[:2000],
                 "input_tokens": resp.input_tokens,
                 "output_tokens": resp.output_tokens,
+                "confidence": pred.confidence,
+                "provider": resp.provider,
+                "attempts": resp.attempts,
                 "error": None,
             })
             row.update(metrics)

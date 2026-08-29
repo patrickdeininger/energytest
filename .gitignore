@@ -32,3 +32,6 @@ Thumbs.db
 
 # Submission bundles: regenerable via harness/scripts/build_submission_package.py
 submission_MDPI/
+
+# Zenodo deposit bundle: regenerable via harness/scripts/build_submission_package.py
+harness.zip

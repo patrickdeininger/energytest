@@ -12,6 +12,8 @@ class Response(BaseModel):
     input_tokens: int
     output_tokens: int
     ttft_ms: float | None = None  # time-to-first-token, if the backend reports it
+    provider: str | None = None  # upstream that served the request, when reported
+    attempts: int = 1  # API attempts spent (1 = first try); >1 means retries fired
 
 
 class Task(BaseModel):

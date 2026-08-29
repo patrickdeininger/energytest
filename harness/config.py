@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from harness.backends.api import APIBackend, OpenAICompatibleClient
 from harness.backends.mock import MockBackend
@@ -51,6 +51,19 @@ class GenCfg(BaseModel):
     temperature: float = 0.0
     max_output_tokens: int = 128
     max_code_chars: int | None = None  # truncate long inputs to bound cost/context
+    # Which prompt template to use; "v1" is the anchor used by the original runs.
+    prompt_variant: str = "v1"
+
+    @field_validator("prompt_variant")
+    @classmethod
+    def _known_variant(cls, v: str) -> str:
+        from harness.tasks.vuln_detect import PROMPT_TEMPLATES
+
+        if v not in PROMPT_TEMPLATES:
+            raise ValueError(
+                f"unknown prompt_variant {v!r}; known: {sorted(PROMPT_TEMPLATES)}"
+            )
+        return v
 
 
 class RunConfig(BaseModel):
@@ -67,8 +80,14 @@ class RunConfig(BaseModel):
 
 
 def load_config(path: str) -> RunConfig:
+    """Load a run config. HARNESS_CONCURRENCY_OVERRIDE lets the concurrency sweep
+    reuse one config across levels without writing four near-identical files."""
     with open(path, encoding="utf-8") as fh:
-        return RunConfig(**yaml.safe_load(fh))
+        cfg = RunConfig(**yaml.safe_load(fh))
+    override = os.environ.get("HARNESS_CONCURRENCY_OVERRIDE")
+    if override:
+        cfg = cfg.model_copy(update={"concurrency": int(override)})
+    return cfg
 
 
 def make_backend(spec: ModelSpec, seed: int):
@@ -85,7 +104,11 @@ def make_backend(spec: ModelSpec, seed: int):
         # Optional reasoning control, e.g. params.reasoning: {enabled: false} or {effort: low}
         extra_body = {"reasoning": spec.params["reasoning"]} if "reasoning" in spec.params else None
         client = OpenAICompatibleClient(
-            api_key=api_key, base_url=base_url, extra_headers=headers, extra_body=extra_body
+            api_key=api_key,
+            base_url=base_url,
+            extra_headers=headers,
+            extra_body=extra_body,
+            provider_order=spec.params.get("provider_order"),
         )
         return APIBackend(model=spec.params.get("model", spec.id), client=client)
     raise ValueError(f"unknown backend: {spec.backend!r}")
