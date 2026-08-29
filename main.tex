@@ -233,6 +233,39 @@ Qwen3-Coder-30B & open & 0.452 & 0.429 & 2.33 & 41.9 & 430 & 10.0 & 0.006 & 4.0\
 \end{adjustwidth}
 \end{table}
 
+\subsubsection*{Can an elicited confidence supply the missing score?}
+Precision--recall curves, calibration analysis and PrimeVul's own VD-Score all require a continuous score, which a binary verdict cannot provide. We therefore re-ran every model on the full sample asking it to emit, with its verdict, an integer 0--100 defined in the prompt as ``the probability, in percent, that the code contains a vulnerability: 0 means certainly safe, 100 means certainly vulnerable.'' The instruction is unambiguous. Most models did not follow it, and the pattern of failure is worth reporting because it bears directly on whether elicited confidence can stand in for a model score at all (Table~\ref{tab:confidence}).
+
+Only Claude-Sonnet-5 used the requested scale with usable resolution: 34 distinct levels over 99.7\% of tasks, with NO verdicts averaging 0.26 and YES verdicts 0.63, and a resulting ROC-AUC of 0.814. Three models --- Gemma-3-4B, GLM-5 and GPT-5.1 --- instead reported \emph{confidence in their own verdict}, a different quantity: their NO and YES verdicts both average 0.75--0.91, which is the signature of ``how sure am I'' rather than ``how likely is a vulnerability''. Their numbers can be converted, and doing so yields AUCs of 0.76, 0.75 and 0.69, but the convention has to be inferred from the outputs rather than assumed. DeepSeek-V3.2 emitted the literal token \texttt{-1} on 1409 of 1549 tasks, carrying no information in either direction. Llama-3.3-70B used both conventions within the same verdict class. Gemini-3.1-Pro produced a parseable pair on 1.2\% of tasks.
+
+Two conclusions follow. The first is positive: where a number is usable at all, it adds real ranking information beyond the verdict, improving on each model's own balanced accuracy by $+0.005$ to $+0.110$. Eliciting a confidence is therefore worth doing. The second is limiting: the resulting grids are coarse, at 5 to 34 distinct levels, and that coarseness is what defeats VD-Score. PrimeVul defines it at a fixed 0.5\% false-positive rate, and only Claude-Sonnet-5's grid brackets that target closely (achievable rates of 0.000, 0.002, 0.003, 0.004); GLM-5's jumps from 0.009 straight to 0.028, so no threshold on its output lands near the required operating point. We therefore report PR-style operating points where the grid supports them and decline to report VD-Score for models whose scores cannot reach its definition, rather than interpolating a number the data does not contain.
+
+Finally, the comparison that matters. The best score any LLM produced --- Claude-Sonnet-5 at ROC-AUC 0.814 --- still ranks below the 125-million-parameter fine-tuned detector of Section~\ref{sec:baselines} at 0.845, despite the LLM being some three orders of magnitude larger.
+
+\begin{table}[H]
+\caption{Elicited confidence as a score source. \textbf{Cover} is the fraction of tasks returning both a parseable verdict and a number; \textbf{Levels} the distinct values used. \textbf{Reading} is inferred from each model's own outputs, not chosen by which gives a better result: under the requested \emph{literal} reading YES verdicts carry much higher numbers than NO ones, whereas under a \emph{conditional} reading (confidence in the verdict) both classes sit high together. \textbf{AUC} is under the inferred reading. \textbf{Gain} is over the same model's binary-verdict balanced accuracy in this run.\label{tab:confidence}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{lCCCCCC}
+\toprule
+\textbf{Model} & \textbf{Cover} & \textbf{Levels} & \textbf{Mean $c|$NO} & \textbf{Mean $c|$YES} & \textbf{Reading} & \textbf{AUC (gain)}\\
+\midrule
+Claude-Sonnet-5 & 0.997 & 34 & 0.26 & 0.63 & literal & \textbf{0.814} ($+0.072$)\\
+Gemma-3-4B & 1.000 & 7 & 0.89 & 0.81 & conditional & 0.761 ($+0.110$)\\
+GLM-5 & 1.000 & 12 & 0.91 & 0.87 & conditional & 0.750 ($+0.047$)\\
+GPT-5.1 & 1.000 & 25 & 0.77 & 0.75 & conditional & 0.693 ($+0.076$)\\
+Qwen3-Coder-30B & 1.000 & 5 & 0.00 & 0.85 & literal & 0.561 ($+0.003$)\\
+\midrule
+DeepSeek-V3.2 & 0.979 & 7 & 0.01 & 0.00 & \textit{degenerate} & \textit{no information}\\
+Llama-3.3-70B & 1.000 & 5 & 0.52 & 0.81 & \textit{inconsistent} & \textit{not interpretable}\\
+Gemini-3.1-Pro & 0.012 & -- & -- & -- & \textit{no output} & \textit{--}\\
+\midrule
+\textit{CodeBERT-PrimeVul (125M, fine-tuned)} & \textit{1.000} & \textit{continuous} & -- & -- & -- & \textit{\textbf{0.845}}\\
+\bottomrule
+\end{tabularx}
+\end{adjustwidth}
+\end{table}
+
 \subsection{Non-LLM Baselines}\label{sec:baselines}
 To calibrate absolute difficulty we run four non-LLM detectors over the identical 1549 functions (Table~\ref{tab:baselines}). Three are static analyzers of increasing semantic ambition --- the lexical Flawfinder, the flow-sensitive Cppcheck, and Semgrep with its community C and security-audit rulesets, which performs pattern and intraprocedural taint analysis --- and the fourth is the off-the-shelf CodeBERT-Devign classifier. Each analyzer exposes a severity or risk threshold, which we sweep rather than fix, so the precision--recall trade-off is visible instead of being chosen by us.
 
