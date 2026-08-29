@@ -28,6 +28,11 @@
 % thebibliography list; the class selects Definitions/mdpi.bst automatically.
 \externalbibliography{yes}
 
+% Coverage marks for the related-work comparison table.
+\newcommand{\cmark}{\ensuremath{\checkmark}}
+\newcommand{\pmark}{\ensuremath{(\checkmark)}}
+\newcommand{\xmark}{\ensuremath{-}}
+
 \Title{Open or Frontier? A Cost- and Energy-Aware Benchmark of Large Language Models for Software Vulnerability Detection}
 
 \newcommand{\orcidauthorA}{0009-0007-9625-3094}
@@ -43,7 +48,7 @@ $^{2}$ \quad Institute of Computer Science and Artificial Intelligence, FH JOANN
 
 \corres{Correspondence: patrick.deininger@student.tugraz.at}
 
-\abstract{Large language models (LLMs) are increasingly applied to software vulnerability detection, but evaluations report accuracy while ignoring inference cost and energy, and under-represent open-weight models relative to proprietary systems. We benchmark eight LLMs, three frontier and five open-weight, on a stratified 1549-function subset of label-clean PrimeVul, treating cost and energy as first-class axes alongside detection quality. Cost is measured directly; energy is FLOP-estimated for API-served models and measured on-GPU for two locally servable open models. Open-weight models occupy the quality-efficiency Pareto frontier, and no frontier model is Pareto-optimal. A 4-billion-parameter open model matches or exceeds frontier quality at roughly one-hundredth the cost and one to two orders of magnitude less energy per task. We adopt balanced accuracy because no LLM beats a trivial always-safe baseline on raw accuracy; the three highest-scoring models are all open-weight (0.676, 0.653, 0.637 against 0.616--0.623 for the frontier), the best significantly exceeding every frontier model in direct-answer mode. Frontier reasoning reaches only statistical parity, at 2.5 to 7.6 times the cost. Absolute quality is modest, with low precision at realistic prevalence. The efficiency-optimal choice, a small open-weight model, is therefore also quality-competitive, with implications for on-premises security tooling and its carbon footprint.}
+\abstract{Large language models (LLMs) are increasingly applied to software vulnerability detection, but evaluations report accuracy while ignoring inference cost and energy, and under-represent open-weight models relative to proprietary systems. We benchmark eight LLMs, three frontier and five open-weight, on a stratified 1549-function subset of label-clean PrimeVul, treating cost and energy as first-class axes alongside detection quality. Cost is measured directly; energy is measured on-GPU for two locally servable open models and FLOP-estimated, with a sensitivity range, for the API-served ones. Efficiency is the robust finding: open-weight models occupy the quality-efficiency Pareto frontier in every configuration tested, no frontier model is Pareto-optimal, and a 4-billion-parameter open model matches frontier quality at roughly one-hundredth the list price and one to two orders of magnitude less energy per task. Quality is configuration-dependent. We adopt balanced accuracy because no LLM beats a trivial always-safe baseline on raw accuracy. At a matched direct-answer budget the best open model significantly exceeds every frontier model (0.676 against 0.616--0.623); granting the frontier native reasoning raises it only to parity (0.677), at 2.5 to 7.6 times the cost. No model is deployment-ready: at PrimeVul's natural 1:44 prevalence, precision is 2.3--3.8\% against a 2.2\% base rate.}
 
 \keyword{large language models; vulnerability detection; software security; benchmarking; energy efficiency; open-weight models; inference cost; green AI}
 
@@ -60,22 +65,46 @@ Second, security evaluations lean heavily on proprietary frontier models. A rece
 This paper brings the two concerns together. We benchmark eight contemporary LLMs, a spread of open-weight and frontier systems, on realistic vulnerability detection, reporting cost and energy as first-class axes, with latency as a confounded secondary measure. We also calibrate the LLM results against non-LLM reference points, a static analyzer and a learned detector, to gauge absolute difficulty. Our contributions are:
 \begin{itemize}
 \item A cost- and energy-aware benchmark of open-weight versus frontier LLMs on the label-clean PrimeVul dataset~\citep{primevul}, with a reproducible, test-driven measurement harness and non-LLM reference points (Section~\ref{sec:methods}).
-\item Empirical evidence that open-weight models dominate the quality and efficiency Pareto frontier, from a 4-billion-parameter model at the efficiency end to a sparse mixture-of-experts at the quality end. They deliver comparable or better detection quality at one to two orders of magnitude lower cost and energy per task, and this efficiency dominance holds across configurations. It in fact widens even when the frontier models are allowed their native reasoning mode (Section~\ref{sec:results}). On quality alone, the best open model significantly beats every frontier model in the direct-answer configuration, and the frontier reaches only statistical parity, and only by reasoning at several times the cost.
+\item Empirical evidence that open-weight models occupy the quality and efficiency Pareto frontier, from a 4-billion-parameter model at the efficiency end to a sparse mixture-of-experts at the quality end, while no frontier model is Pareto-optimal. We separate two claims of different strength. The \emph{efficiency} advantage is configuration-invariant: it holds in every configuration we tested, and widens when the frontier models are allowed their native reasoning mode (Section~\ref{sec:results}). The \emph{quality} advantage is configuration-specific: at a matched direct-answer budget the best open model significantly beats every frontier model, but granting the frontier its native reasoning mode raises the strongest frontier system to statistical parity with it, at several times the cost. The defensible summary is therefore a decisive efficiency advantage together with quality competitiveness, not quality dominance.
 \item A precise account of what can and cannot be measured for closed API models. We measure cost and latency directly throughout, measure energy on-GPU for the two locally servable open models, and give a bounded, assumption-explicit FLOP estimate of energy for the API-only models. The measured points are consistent with that estimate to within roughly a factor of two (Sections~\ref{sec:methods} and~\ref{sec:energy-validation}).
 \end{itemize}
 
-We are explicit that these results are a first, deployment-realistic snapshot. Energy is measured directly for the two locally servable open models and FLOP-estimated for the API-only models, and the models are evaluated in a direct-answer configuration. Section~\ref{sec:discussion} details these limitations and the extensions they invite.
+We are explicit that these results are a first, deployment-realistic snapshot, and that quality in absolute terms is poor. At PrimeVul's natural 1:44 prevalence every model we tested raises roughly twenty-six false alarms per true finding, so the comparison identifies the least miscalibrated model rather than a usable one; Section~\ref{sec:prevalence} quantifies this before any deployment reading is drawn from the rankings. Energy is measured directly for the two locally servable open models and FLOP-estimated, with a sensitivity range, for the API-only models. Section~\ref{sec:discussion} details these limitations and the extensions they invite.
 
 \section{Related Work}
 
 \subsection{LLMs for Vulnerability Detection}
-Benchmarks for LLM-based vulnerability detection have proliferated. Meta's CyberSecEval suite evaluates insecure-code generation and broader cyber-safety~\citep{cyberseceval}. SecVulEval provides a large, de-duplicated, CVE-grounded C/C++ set with statement-level labels~\citep{secvuleval}. Independent evaluations temper early optimism. Ullah et al.\ find that leading LLMs cannot yet reliably identify or reason about vulnerabilities~\citep{secllmholmes}, and Steenhoek et al.\ report only 54.5\% balanced accuracy for state-of-the-art models on this task~\citep{steenhoek}, a picture our results corroborate. A recurring and central concern is label quality. The C/C++ datasets underpinning this literature have grown successively larger and cleaner, from Devign~\citep{devign} and Big-Vul~\citep{bigvul} to the de-duplicated DiverseVul~\citep{diversevul}. Even so, many widely used sets carry substantial label noise and cross-split duplication, which inflates reported performance and collapses on realistic data~\citep{croft,reveal}. PrimeVul was constructed specifically to address this, using near-human-accuracy labelers, rigorous de-duplication, and chronological splits, and it reports that strong code models drop from high F1 on noisy datasets to near-random on PrimeVul~\citep{primevul}. We adopt PrimeVul as our backbone for exactly this reason.
+Benchmarks for LLM-based vulnerability detection have proliferated. Meta's CyberSecEval suite evaluates insecure-code generation and broader cyber-safety~\citep{cyberseceval}. SecVulEval provides a large, de-duplicated, CVE-grounded C/C++ set with statement-level labels~\citep{secvuleval}. Independent evaluations temper early optimism. Ullah et al.\ find that leading LLMs cannot yet reliably identify or reason about vulnerabilities~\citep{secllmholmes}. Steenhoek et al.\ report only 54.5\% balanced accuracy for state-of-the-art models on this task~\citep{steenhoek}, a picture our results corroborate. A recurring and central concern is label quality. The C/C++ datasets underpinning this literature have grown successively larger and cleaner, from Devign~\citep{devign} and Big-Vul~\citep{bigvul} to the de-duplicated DiverseVul~\citep{diversevul}. Even so, many widely used sets carry substantial label noise and cross-split duplication, which inflates reported performance and collapses on realistic data~\citep{croft,reveal}. PrimeVul was constructed specifically to address this, using near-human-accuracy labelers, rigorous de-duplication, and chronological splits, and it reports that strong code models drop from high F1 on noisy datasets to near-random on PrimeVul~\citep{primevul}. We adopt PrimeVul as our backbone for exactly this reason.
 
 \subsection{Efficiency and Energy of LLM Inference}
-The energy and climate cost of large models has been a concern since at least the training-time analysis of Strubell et al.~\citep{strubell}, and measuring the cost of \emph{inference} is now an active area in its own right. Direct energy measurement on datacenter GPUs has been reported for open models~\citep{luccioni,samsi}, and standardized power-measurement methodology exists at the systems level~\citep{mlperfpower}. A well-documented pitfall is that NVIDIA's sampled power interface substantially under-samples short kernels, which motivates counter-based measurement~\citep{parttime}. For closed API models, energy cannot be measured directly. Infrastructure-aware estimation frameworks instead bound it from public performance data and hardware assumptions~\citep{jegham}. Efficiency has also entered general LLM benchmarks as a first-class axis~\citep{helm,tokenpowerbench}. Our methodology reuses this rigor but applies it, for the first time to our knowledge, within a security-detection benchmark.
+The energy and climate cost of large models has been a concern since at least the training-time analysis of Strubell et al.~\citep{strubell}, and measuring the cost of \emph{inference} is now an active area in its own right. Direct energy measurement on datacenter GPUs has been reported for open models~\citep{luccioni,samsi}, and standardized power-measurement methodology exists at the systems level~\citep{mlperfpower}. A well-documented pitfall is that NVIDIA's sampled power interface substantially under-samples short kernels, which motivates counter-based measurement~\citep{parttime}. For closed API models, energy cannot be measured directly. Infrastructure-aware estimation frameworks instead bound it from public performance data and hardware assumptions~\citep{jegham}. Efficiency has also entered general LLM benchmarks as a first-class axis~\citep{helm,tokenpowerbench}. Our methodology reuses this rigor and applies it within a security-detection benchmark, where, as Section~\ref{sec:gap} sets out, energy has not previously been reported as a per-task evaluation axis.
 
-\subsection{The Gap}
-Very recent work has begun to compare open and frontier models on security detection tasks, for example web vulnerability detection in WordPress plugins~\citep{neef} and dual-mode function- and application-level detection~\citep{dahiya}. This work centers on detection accuracy, however, giving monetary cost and latency at most partial treatment and energy none. None reports energy as a co-equal per-task axis across a broad off-the-shelf open-weight roster. That combination of open-weight breadth, a security detection task, and cost and energy measured together is the gap this paper addresses.
+\subsection{The Gap}\label{sec:gap}
+Cost has recently begun to appear in LLM security evaluations. Lira et al.\ assess effectiveness \emph{and} inference cost for four proprietary models on interprocedural vulnerability detection over ReposVul~\citep{lira}, and other recent work compares open and frontier models on security detection tasks, including web vulnerability detection in WordPress plugins~\citep{neef} and dual-mode function- and application-level detection~\citep{dahiya}. This is the immediate context for our study, and it is moving quickly.
+
+We therefore state our contribution as a specific combination rather than as priority. Table~\ref{tab:gap} places this paper against the closest prior work on three axes. Monetary cost is now reported by some security evaluations; energy is reported by none of them, and the general-purpose benchmarks that do treat energy seriously~\citep{helm,tokenpowerbench,jegham,luccioni} do not evaluate a security detection task. Breadth of open-weight coverage is likewise uneven: the study that reports cost most carefully evaluates only proprietary models. What is new here is the conjunction --- a security detection task, a five-model open-weight roster spanning 4B to 671B total parameters, and cost \emph{and} energy reported as co-equal per-task axes with energy measured directly where the model can be self-hosted. We make no claim to be first on any single one of these axes.
+
+\begin{table}[H]
+\caption{This paper against the closest prior work. \cmark\ denotes reported as a per-task evaluation axis, \pmark\ partial treatment, \xmark\ not reported. ``Open roster'' counts distinct open-weight models evaluated.\label{tab:gap}}
+\begin{tabularx}{\textwidth}{XcccC}
+\toprule
+\textbf{Study} & \textbf{Security task} & \textbf{Cost} & \textbf{Energy} & \textbf{Open roster}\\
+\midrule
+CyberSecEval~\citep{cyberseceval} & \cmark & \xmark & \xmark & several\\
+SecVulEval~\citep{secvuleval} & \cmark & \xmark & \xmark & several\\
+Steenhoek et al.~\citep{steenhoek} & \cmark & \xmark & \xmark & several\\
+Lira et al.~\citep{lira} & \cmark & \cmark & \xmark & 0\\
+Neef et al.~\citep{neef} & \cmark & \pmark & \xmark & several\\
+Dahiya et al.~\citep{dahiya} & \cmark & \pmark & \xmark & several\\
+\midrule
+HELM~\citep{helm} & \xmark & \pmark & \pmark & many\\
+TokenPowerBench~\citep{tokenpowerbench} & \xmark & \xmark & \cmark & many\\
+Jegham et al.~\citep{jegham} & \xmark & \xmark & \cmark & --\\
+\midrule
+\textbf{This paper} & \cmark & \cmark & \cmark & \textbf{5}\\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 \section{Materials and Methods}\label{sec:methods}
 
@@ -104,12 +133,35 @@ Gemma-3-4B & open & 4B\\
 \end{table}
 
 \subsection{Measurement Methodology}
-We treat detection quality, cost, and energy as co-equal evaluation axes, and also report latency. Because the open-weight models here are also accessed through the API gateway, cost and latency are measured identically across all models, giving a like-for-like comparison. One caveat matters for interpretation. The cost figure is the gateway's list price, so it reflects current market pricing (which for open-weight models may be set competitively, at or below serving cost) rather than the physical cost of inference. Energy, by contrast, is the physically grounded efficiency axis. It is FLOP-estimated for the API-served models and, for the two open models we could serve locally on a single GPU (Qwen3-Coder-30B, Llama-3.3-70B), measured directly on that GPU.
+We treat detection quality, cost, and energy as co-equal evaluation axes, and also report latency. Because the open-weight models here are also accessed through the API gateway, cost and latency are measured identically across all models, giving a like-for-like comparison.
+
+One caveat matters enough to quantify rather than merely state. The cost figure is a gateway list price, and list price is not a property of a model. We captured every provider serving each evaluated model through the gateway at a single instant (Table~\ref{tab:price-dispersion}). An open-weight model is typically offered by four to fourteen independent operators whose input prices differ by up to 14-fold --- DeepSeek-V3.2 ranges from \$0.209 to \$3.00 per million input tokens, Llama-3.3-70B from \$0.100 to \$1.04 --- so which price one pays is a routing decision, not a measurement. Frontier prices vary too, by up to fourfold across resale channels, but there the underlying service is a single opaque one. The more consequential difference is that open-weight providers also differ in \emph{numerics}: the same Llama-3.3-70B weights are served at \texttt{bf16}, \texttt{fp16} and FP8 by different operators, and GLM-5 at FP8 by most and FP4 by one. A cheaper endpoint is therefore sometimes a different computation rather than a better deal, which no price-only comparison can distinguish.
+
+Two methodological consequences follow, and both are new in this revision. First, every run pins its provider explicitly, with gateway fallbacks disabled, so the configured per-token price is the price actually charged and the served numerics are fixed; the pinned provider and quantization for each model are listed in Appendix~\ref{app:repro}. This also guards against a failure we observed directly: one provider for Qwen3-Coder-30B billed output tokens while returning empty content, which would have been scored as a parse failure and silently understated the model. Second, we report the cost axis as an operating point with a provider attached rather than as an intrinsic model property, and we treat the provider spread as its uncertainty. Energy, by contrast, is a physical quantity that does not depend on who is selling it, which is the central reason we regard it as the sounder efficiency axis of the two.
+
+\begin{table}[H]
+\caption{Provider dispersion for the evaluated models, captured 2026-08-29 through the gateway's endpoint listing and shipped with the reproduction package. \textbf{Prov.}\ is the number of distinct providers serving the model; \textbf{Input \$/Mtok} is the range of list prices; \textbf{Spread} is max/min. Frontier quantization is undisclosed by every provider.\label{tab:price-dispersion}}
+\begin{tabularx}{\textwidth}{llCCCX}
+\toprule
+\textbf{Model} & \textbf{Tier} & \textbf{Prov.} & \textbf{Input \$/Mtok} & \textbf{Spread} & \textbf{Quantizations offered}\\
+\midrule
+DeepSeek-V3.2 & open & 14 & 0.209--3.000 & 14.4$\times$ & FP8, FP4, undisclosed\\
+Llama-3.3-70B & open & 13 & 0.100--1.040 & 10.4$\times$ & FP8, \texttt{bf16}, \texttt{fp16}, undisclosed\\
+Qwen3-Coder-30B & open & 4 & 0.070--0.292 & 4.2$\times$ & FP8, undisclosed\\
+GLM-5 & open & 11 & 0.600--1.000 & 1.7$\times$ & FP8, FP4, undisclosed\\
+Gemma-3-4B & open & 1 & 0.050 & 1.0$\times$ & \texttt{bf16}\\
+\midrule
+GPT-5.1 & frontier & 5 & 0.625--2.500 & 4.0$\times$ & undisclosed\\
+Gemini-3.1-Pro & frontier & 6 & 1.000--3.600 & 3.6$\times$ & undisclosed\\
+Claude-Sonnet-5 & frontier & 9 & 2.000--2.200 & 1.1$\times$ & undisclosed\\
+\bottomrule
+\end{tabularx}
+\end{table} It is FLOP-estimated for the API-served models and, for the two open models we could serve locally on a single GPU (Qwen3-Coder-30B, Llama-3.3-70B), measured directly on that GPU.
 
 \textbf{Cost} is computed exactly from logged input/output token counts and published per-token pricing. \textbf{Latency} is measured client-side (total wall-clock time and output tokens per second). We report it as service latency and note that the figures were collected under concurrent load and therefore conflate model speed with queueing. \textbf{Energy} cannot be measured for API-served models, which run on unknown hardware with unknown batching~\citep{jegham}. We therefore report a transparent FLOP-based estimate, $E \approx 2\,N_\text{active}\,T\,\varepsilon$, where $N_\text{active}$ is the active parameter count, $T$ the total token count, and $\varepsilon$ a system-level energy-per-FLOP constant calibrated so that a frontier-class query reproduces published per-query estimates~\citep{jegham}. For open-weight models the active parameter count is known, which gives a grounded estimate. For frontier models it is a bounded assumption, and we treat the resulting energy as an estimate with an explicit uncertainty rather than a measurement. Every result row carries an \texttt{energy\_source} tag so that measured and estimated energy are never conflated. For the two locally servable open models we \emph{measure} energy directly on a dedicated NVIDIA H200 GPU, reading the NVIDIA Management Library (NVML) cumulative energy counter~\citep{parttime,samsi} across each request at concurrency~1. We report both a gross energy and an active energy that subtracts the measured idle draw. Qwen3-Coder-30B was served in \texttt{bfloat16} and Llama-3.3-70B in FP8, because the 70B model does not fit a single H200 in \texttt{bfloat16}. The remaining open models could not be served under our fixed local stack. Gemma-3-4B is incompatible with the pinned vLLM/CUDA build, and DeepSeek-V3.2 and GLM-5 exceed single-GPU capacity, so their energy remains FLOP-estimated.
 
 \subsection{Harness and Reproducibility}\label{sec:harness}
-All experiments run through a purpose-built, test-driven harness (82 automated tests) with pluggable model backends and measurement meters. Each run records its resolved configuration, random seed, model versions, and a per-token price snapshot, and results are written incrementally so that long runs are crash-safe and resumable. Generation is deterministic (temperature~0, fixed maximum output length). As non-LLM reference points we additionally run, over the identical functions, Flawfinder~2.0.20 (a lexical C/C++ static analyzer, labeling a function vulnerable when it raises at least one hit at risk level~$\geq$1) and an off-the-shelf learned detector (a CodeBERT classifier fine-tuned on the Devign dataset~\citep{devign}, using its argmax prediction over inputs truncated to 512 tokens). The harness, configurations, and the exact sampled function identifiers are released with this paper (see Data Availability).
+All experiments run through a purpose-built, test-driven harness (82 automated tests) with pluggable model backends and measurement meters. Each run records its resolved configuration, random seed, model versions, and a per-token price snapshot, and results are written incrementally so that long runs are crash-safe and resumable. Generation is deterministic (temperature~0, fixed maximum output length). As non-LLM reference points we additionally run four detectors over the identical functions (Section~\ref{sec:baselines}). Three are static analyzers: Flawfinder~2.0.20, a lexical C/C++ scanner; Cppcheck~2.21, which is flow-sensitive; and Semgrep~1.175 with the community C and security-audit rulesets. For each, a function counts as predicted-vulnerable when the tool raises at least one finding at or above a severity threshold, and we sweep that threshold rather than fixing it. The fourth is an off-the-shelf learned detector, a CodeBERT classifier fine-tuned on the Devign dataset~\citep{devign}, using its argmax prediction over inputs truncated to 512 tokens. The harness, configurations, and the exact sampled function identifiers are released with this paper (see Data Availability).
 
 \section{Results}\label{sec:results}
 
@@ -117,40 +169,109 @@ All experiments run through a purpose-built, test-driven harness (82 automated t
 Our sample is imbalanced (549 vulnerable, 1000 safe), so raw accuracy is dominated by a trivial classifier. Predicting ``safe'' for every function yields 0.646 accuracy, which exceeds the accuracy of \emph{every} LLM we tested. Raw accuracy is therefore not a meaningful primary metric here. We instead adopt \textbf{balanced accuracy} (the mean of true-positive and true-negative rates) as the primary metric, for which both trivial classifiers score exactly 0.5, and we report the Matthews correlation coefficient (MCC) and F1 (the harmonic mean of precision and recall) alongside it. Metrics are computed over each model's parsed predictions, so the effective sample size ranges from 1526 to 1549 across models. Parse rates were near-perfect (0.985--1.000) once reasoning-capable models were configured to emit a verdict rather than only internal reasoning.
 
 \subsection{Detection Quality}\label{sec:quality}
-Table~\ref{tab:results} reports all eight models plus the two trivial baselines, sorted by balanced accuracy. All comparisons here use the direct-answer mode, with reasoning disabled where the provider allows it. Section~\ref{sec:reasoning} examines what changes when the frontier models are allowed to reason. The three highest-quality models are all open-weight. DeepSeek-V3.2 (0.676, 95\% CI $[0.654, 0.697]$), Gemma-3-4B (0.653, $[0.630, 0.676]$), and GLM-5 (0.637, $[0.619, 0.654]$) all rank above the three frontier models (0.616--0.623). Because balanced accuracy, not raw accuracy, is our primary metric, we test the pairwise gaps with a stratified paired bootstrap of the balanced-accuracy difference (20{,}000 resamples, resampling the 549 positive and 1000 negative task outcomes independently so the design is preserved) and control the family-wise error rate across the nine comparisons between these three open models and the three frontier models with a Holm correction. DeepSeek-V3.2 significantly exceeds all three frontier models (paired balanced-accuracy gaps $+0.054$ to $+0.060$ on the common parsed set, Holm-adjusted $p=7\times10^{-4}$ against Gemini-3.1-Pro and below the bootstrap's $10^{-4}$ resolution against the other two). These conclusions do not depend on the choice of family. Under a stricter Holm correction over all fifteen open-versus-frontier pairs, DeepSeek still beats all three, and Gemma-3-4B's edge over Claude-Sonnet-5 remains significant (adjusted $p=0.049$). The comparison against Gemini-3.1-Pro is the least clean of the three. Gemini exposes no direct mode, so its 0.623 is a reasoning run held to the main-run output budget, and at a larger budget it reaches 0.677 (Section~\ref{sec:reasoning}); the direct-mode win is cleanest against Claude-Sonnet-5 and GPT-5.1, and the fair comparison with Gemini is the reasoning-mode tie. The next two open models rank above every frontier model on the point estimate, but by smaller margins that mostly do not survive correction. After Holm adjustment, only Gemma-3-4B's advantage over Claude-Sonnet-5 remains significant ($+0.037$, $p=0.03$). Its gaps to GPT-5.1 ($+0.036$, $p=0.08$) and Gemini-3.1-Pro ($+0.028$, $p=0.13$), and all three of GLM-5's gaps ($+0.012$ to $+0.021$, $p\geq0.13$), do not. The defensible claim is therefore narrower than a blanket one. The single best open model significantly beats the entire frontier tier, and the three best open models all rank above it, but not every top-open-versus-frontier gap is individually significant, and not every open model beats the frontier. Qwen3-Coder-30B is indistinguishable from chance (balanced accuracy 0.511, MCC 0.022, 95\% CI on MCC $[-0.03, 0.07]$).
+Table~\ref{tab:results} reports all eight models plus the two trivial baselines, sorted by balanced accuracy. All comparisons here use the direct-answer mode, with reasoning disabled where the provider allows it. Section~\ref{sec:reasoning} examines what changes when the frontier models are allowed to reason. The three highest-quality models are all open-weight. DeepSeek-V3.2 (0.676, 95\% CI $[0.654, 0.697]$), Gemma-3-4B (0.653, $[0.630, 0.676]$), and GLM-5 (0.637, $[0.619, 0.654]$) all rank above the three frontier models (0.616--0.623). Because balanced accuracy, not raw accuracy, is our primary metric, we test the pairwise gaps with a stratified paired bootstrap of the balanced-accuracy difference (20{,}000 resamples, resampling the 549 positive and 1000 negative task outcomes independently so the design is preserved) and control the family-wise error rate across the nine comparisons between these three open models and the three frontier models with a Holm correction. DeepSeek-V3.2 significantly exceeds all three frontier models (paired balanced-accuracy gaps $+0.054$ to $+0.060$ on the common parsed set). For all three, no resample of the 20{,}000 reversed the sign of the gap, so the raw two-sided $p$ lies below the bootstrap's $5\times10^{-5}$ resolution and the Holm-adjusted $p$ below $5\times10^{-4}$; we report the bound rather than a point value because the bootstrap cannot resolve further. These conclusions do not depend on the choice of family. Under a stricter Holm correction over all fifteen open-versus-frontier pairs, DeepSeek still beats all three, and Gemma-3-4B's edge over Claude-Sonnet-5 remains significant (adjusted $p=0.049$). The comparison against Gemini-3.1-Pro is the least clean of the three. Gemini exposes no direct mode, so its 0.623 is a reasoning run held to the main-run output budget, and at a larger budget it reaches 0.677 (Section~\ref{sec:reasoning}); the direct-mode win is cleanest against Claude-Sonnet-5 and GPT-5.1, and the fair comparison with Gemini is the reasoning-mode tie. The next two open models rank above every frontier model on the point estimate, but by smaller margins that mostly do not survive correction. After Holm adjustment, only Gemma-3-4B's advantage over Claude-Sonnet-5 remains significant ($+0.037$, $p=0.03$). Its gaps to GPT-5.1 ($+0.036$, $p=0.08$) and Gemini-3.1-Pro ($+0.028$, $p=0.13$), and all three of GLM-5's gaps ($+0.012$ to $+0.021$, $p\geq0.13$), do not. The defensible claim is therefore narrower than a blanket one. The single best open model significantly beats the entire frontier tier, and the three best open models all rank above it, but not every top-open-versus-frontier gap is individually significant, and not every open model beats the frontier. Qwen3-Coder-30B is indistinguishable from chance (balanced accuracy 0.511, MCC 0.022, 95\% CI on MCC $[-0.03, 0.07]$).
 
 On the threshold-invariant MCC the separation is narrower still. DeepSeek-V3.2 (0.344) leads clearly, but Gemini-3.1-Pro (0.298) is level with Gemma-3-4B (0.296) and above GPT-5.1 (0.230), so the unambiguous quality result is DeepSeek's rather than a blanket open-weight advantage.
 
-Absolute quality is nonetheless modest for all models (balanced accuracy 0.51--0.68, MCC 0.02--0.34), and specificity varies widely, from 0.25 (Llama-3.3-70B) to 0.57 (Qwen3-Coder-30B). This matters for deployment. On PrimeVul's natural 1:44 prevalence, rather than on our balanced sample, precision is low for every model, at 2.3--3.8\%. That is only marginally above the 2.2\% base rate an always-flag classifier would achieve. The balanced-accuracy ranking thus identifies the \emph{least miscalibrated} model, not a deployment-ready one, and we return to this in Section~\ref{sec:discussion}. The frontier models in particular show high recall but low specificity (Gemini-3.1-Pro and Claude-Sonnet-5 flag about 70\% of safe functions), which is why they trail on the balanced metric despite competitive F1.
+Absolute quality is nonetheless modest for all models (balanced accuracy 0.51--0.68, MCC 0.02--0.34), and specificity varies widely, from 0.25 (Llama-3.3-70B) to 0.57 (Qwen3-Coder-30B). The frontier models in particular show high recall but low specificity (Gemini-3.1-Pro and Claude-Sonnet-5 flag about 70\% of safe functions), which is why they trail on the balanced metric despite competitive F1. Because our sample is balanced by construction while real code is not, none of these figures should be read as deployment performance; Section~\ref{sec:prevalence} translates them to PrimeVul's natural 1:44 base rate, where every model's precision falls to 2.3--3.8\% and the balanced-accuracy ranking is revealed to identify the \emph{least miscalibrated} model rather than a usable one.
 
 \begin{table}[H]
-\caption{Detection quality and efficiency on PrimeVul (N=1549, direct-answer mode), sorted by balanced accuracy. Balanced-accuracy 95\% CIs and Holm-corrected paired significance tests are given in Section~\ref{sec:quality}. \textbf{Spec.}\ is specificity (true-negative rate). Cost is measured for all models. Energy is measured on a dedicated H200 GPU for the two locally served open models ($\dagger$, active energy, see Section~\ref{sec:energy-validation}) and FLOP-estimated otherwise. Flawfinder is a lexical static-analysis reference point (any hit at risk level $\geq$1). CodeBERT-Devign is an off-the-shelf CodeBERT classifier fine-tuned on the Devign dataset, applied cross-dataset. Both are local, with negligible cost and energy. Best per column in bold, except accuracy (deprecated here), the energy column (mixed measured and estimated), and specificity.\label{tab:results}}
+\caption{Detection quality and efficiency on PrimeVul (N=1549, direct-answer mode), sorted by balanced accuracy. Balanced-accuracy 95\% CIs and Holm-corrected paired significance tests are given in Section~\ref{sec:quality} and in full in Appendix~\ref{app:stats}. \textbf{Spec.}\ is specificity (true-negative rate). Cost is measured for every model, but is a \emph{list price} at the pinned provider rather than a serving cost (Section~\ref{sec:methods}). \textbf{Energy src.}\ states provenance explicitly: \emph{meas.}\ is measured on a dedicated H200 GPU at concurrency~1 (active energy, Section~\ref{sec:energy-validation}); \emph{est.}\ is FLOP-estimated, and for the frontier models the bracketed range is that estimate swept over a 25B--400B assumed active-parameter count, which is its dominant uncertainty. Flawfinder is a lexical static-analysis reference point (any hit at risk level $\geq$1) and CodeBERT-Devign an off-the-shelf classifier fine-tuned on Devign and applied cross-dataset; Section~\ref{sec:baselines} adds stronger baselines and sweeps their thresholds. Best per column in bold, except accuracy (deprecated here), energy (mixed provenance), and specificity.\label{tab:results}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{lcCCCCCCCCc}
+\toprule
+\textbf{Model} & \textbf{Tier} & \textbf{Bal.\ acc.} & \textbf{MCC} & \textbf{F1} & \textbf{Acc.} & \textbf{Recall} & \textbf{Spec.} & \textbf{USD/task} & \textbf{Energy (J)} & \textbf{Energy src.}\\
+\midrule
+DeepSeek-V3.2 & open & \textbf{0.676} & \textbf{0.344} & \textbf{0.615} & 0.629 & 0.836 & 0.515 & 0.00017 & 526 & est.\\
+Gemma-3-4B & open & 0.653 & 0.296 & 0.590 & 0.617 & 0.778 & 0.528 & \textbf{0.00004} & 64 & est.\\
+GLM-5 & open & 0.637 & 0.307 & 0.596 & 0.548 & 0.940 & 0.334 & 0.00048 & 424 & est.\\
+Gemini-3.1-Pro & frontier & 0.623 & 0.298 & 0.591 & 0.526 & \textbf{0.963} & 0.284 & 0.00448 & 1966 [492--7865] & est.\\
+GPT-5.1 & frontier & 0.617 & 0.230 & 0.560 & 0.573 & 0.769 & 0.465 & 0.00139 & 1332 [333--5329] & est.\\
+Claude-Sonnet-5 & frontier & 0.616 & 0.272 & 0.582 & 0.522 & 0.940 & 0.292 & 0.00441 & 2489 [622--9955] & est.\\
+Llama-3.3-70B & open & 0.604 & 0.260 & 0.578 & 0.503 & 0.956 & 0.252 & 0.00008 & 738 & \textbf{meas.}\\
+Qwen3-Coder-30B & open & 0.511 & 0.022 & 0.405 & 0.529 & 0.452 & 0.571 & 0.00006 & 88 & \textbf{meas.}\\
+\midrule
+\textit{Flawfinder (static analysis)} & -- & 0.589 & 0.235 & 0.377 & 0.682 & 0.271 & 0.907 & $\approx$0 & $\approx$0 & --\\
+\textit{CodeBERT-Devign (learned)} & -- & 0.518 & 0.105 & 0.532 & 0.378 & 0.996 & 0.039 & $\approx$0 & $\approx$0 & --\\
+\textit{Always-safe (baseline)} & -- & 0.500 & 0.000 & 0.000 & 0.646 & 0.000 & 1.000 & -- & -- & --\\
+\textit{Always-vulnerable (baseline)} & -- & 0.500 & 0.000 & 0.523 & 0.354 & 1.000 & 0.000 & -- & -- & --\\
+\bottomrule
+\end{tabularx}
+\end{adjustwidth}
+\end{table}
+
+\subsection{Deployment Utility at Realistic Prevalence}\label{sec:prevalence}
+The balanced sample answers which model is least miscalibrated. It does not answer what happens when a model is pointed at a codebase, because precision depends on prevalence and PrimeVul's test split is 1 vulnerable function in 45 (549 of 24{,}788). True-positive and false-positive rates are prevalence-invariant, so they transfer from our sample to that base rate directly; only the mix changes. Table~\ref{tab:prevalence} reports the result, and it is sobering.
+
+At the natural base rate every LLM's precision lies between 2.3\% and 3.8\%, against the 2.2\% an always-flag classifier achieves for free. The best model, DeepSeek-V3.2, raises 25.6 false alarms per true finding; the worst raises 41.9. More concretely, each model alerts on between 43\% and 75\% of \emph{all} functions scanned: Gemini-3.1-Pro flags 722 of every 1000 functions to find 21 of the 22 real ones. No triage workflow absorbs that. The efficiency axes translate to the same conclusion in deployment terms. A true positive costs \$0.003 and 3.7\,kJ to surface with Gemma-3-4B, against \$0.212 and 119.6\,kJ with Claude-Sonnet-5, a 70-fold cost and 32-fold energy ratio per actual finding, but neither figure is worth paying if the finding arrives buried in twenty-six false ones.
+
+Two things complicate a simple reading. First, the precision ordering is not the balanced-accuracy ordering: GPT-5.1 ranks third on precision at deployment prevalence and fifth on balanced accuracy, because precision weights specificity far more heavily once positives are rare. A benchmark that reports only balanced accuracy therefore ranks models differently from how they would behave in production. Second, the static analyzer wins this axis outright. Flawfinder exposes a risk-level threshold, and sweeping it trades recall for precision in a way no LLM here can match: at risk level~4 it reaches 13.4\% precision with 6.5 false positives per true positive, roughly four times the precision of the best LLM. That is not a usable tool either, because its recall at that threshold is 0.055 --- it finds one vulnerability in eighteen. The honest summary is that the two method families fail in opposite directions. The LLMs flag nearly everything and are almost never right; the static analyzer flags almost nothing and is right somewhat more often. Neither is ready for independent use, and the balanced-accuracy ranking in Table~\ref{tab:results} should be read as a comparison among inadequate options rather than as a recommendation.
+
+\begin{table}[H]
+\caption{Deployment behavior at PrimeVul's natural 1:44 prevalence, derived from the prevalence-invariant TPR/FPR of Table~\ref{tab:results}. \textbf{Prec.}\ is precision; an always-flag classifier scores 2.21\%. \textbf{FP/TP} is false positives per true positive. \textbf{Alerts} and \textbf{Found} are per 1000 functions scanned, of which 22.1 are vulnerable. \textbf{USD/TP} and \textbf{kJ/TP} are cost and energy per true positive surfaced, inheriting the energy provenance of Table~\ref{tab:results}. Flawfinder is shown at its best-precision threshold (risk level~4) and, in parentheses, at the risk level~$\geq$1 setting used in Table~\ref{tab:results}.\label{tab:prevalence}}
 \begin{adjustwidth}{-\extralength}{0cm}
 \footnotesize
 \begin{tabularx}{\fulllength}{lcCCCCCCCC}
 \toprule
-\textbf{Model} & \textbf{Tier} & \textbf{Bal.\ acc.} & \textbf{MCC} & \textbf{F1} & \textbf{Acc.} & \textbf{Recall} & \textbf{Spec.} & \textbf{USD/task} & \textbf{Energy (J)}\\
+\textbf{Model} & \textbf{Tier} & \textbf{TPR} & \textbf{FPR} & \textbf{Prec.\ (\%)} & \textbf{FP/TP} & \textbf{Alerts} & \textbf{Found} & \textbf{USD/TP} & \textbf{kJ/TP}\\
 \midrule
-DeepSeek-V3.2 & open & \textbf{0.676} & \textbf{0.344} & \textbf{0.615} & 0.629 & 0.836 & 0.515 & 0.00017 & 526\\
-Gemma-3-4B & open & 0.653 & 0.296 & 0.590 & 0.617 & 0.778 & 0.528 & \textbf{0.00004} & 64\\
-GLM-5 & open & 0.637 & 0.307 & 0.596 & 0.548 & 0.940 & 0.334 & 0.00048 & 424\\
-Gemini-3.1-Pro & frontier & 0.623 & 0.298 & 0.591 & 0.526 & \textbf{0.963} & 0.284 & 0.00448 & 1966\\
-GPT-5.1 & frontier & 0.617 & 0.230 & 0.560 & 0.573 & 0.769 & 0.465 & 0.00139 & 1332\\
-Claude-Sonnet-5 & frontier & 0.616 & 0.272 & 0.582 & 0.522 & 0.940 & 0.292 & 0.00441 & 2489\\
-Llama-3.3-70B & open & 0.604 & 0.260 & 0.578 & 0.503 & 0.956 & 0.252 & 0.00008 & 738$^\dagger$\\
-Qwen3-Coder-30B & open & 0.511 & 0.022 & 0.405 & 0.529 & 0.452 & 0.571 & 0.00006 & 88$^\dagger$\\
+DeepSeek-V3.2 & open & 0.836 & 0.485 & \textbf{3.76} & \textbf{25.6} & 493 & 18.5 & 0.009 & 28.4\\
+Gemma-3-4B & open & 0.778 & 0.472 & 3.60 & 26.8 & 479 & 17.2 & \textbf{0.003} & \textbf{3.7}\\
+GPT-5.1 & frontier & 0.769 & 0.535 & 3.15 & 30.7 & 540 & 17.0 & 0.082 & 78.3\\
+GLM-5 & open & 0.940 & 0.666 & 3.10 & 31.3 & 672 & 20.8 & 0.023 & 20.3\\
+Gemini-3.1-Pro & frontier & 0.963 & 0.716 & 2.96 & 32.8 & 722 & \textbf{21.3} & 0.210 & 92.4\\
+Claude-Sonnet-5 & frontier & 0.940 & 0.708 & 2.92 & 33.3 & 713 & 20.8 & 0.212 & 119.6\\
+Llama-3.3-70B & open & 0.956 & 0.748 & 2.81 & 34.5 & 753 & 21.2 & 0.004 & 44.8\\
+Qwen3-Coder-30B & open & 0.452 & 0.429 & 2.33 & 41.9 & 430 & 10.0 & 0.006 & 4.0\\
 \midrule
-\textit{Flawfinder (static analysis)} & -- & 0.589 & 0.235 & 0.377 & 0.682 & 0.271 & 0.907 & $\approx$0 & $\approx$0\\
-\textit{CodeBERT-Devign (learned)} & -- & 0.518 & 0.105 & 0.532 & 0.378 & 0.996 & 0.039 & $\approx$0 & $\approx$0\\
-\textit{Always-safe (baseline)} & -- & 0.500 & 0.000 & 0.000 & 0.646 & 0.000 & 1.000 & -- & --\\
-\textit{Always-vulnerable (baseline)} & -- & 0.500 & 0.000 & 0.523 & 0.354 & 1.000 & 0.000 & -- & --\\
+\textit{Flawfinder (risk~$\geq$4)} & -- & 0.055 & 0.008 & \textit{13.40} & \textit{6.5} & 9 & 1.2 & $\approx$0 & $\approx$0\\
+\textit{Flawfinder (risk~$\geq$1)} & -- & 0.271 & 0.093 & \textit{6.20} & \textit{15.1} & 97 & 6.0 & $\approx$0 & $\approx$0\\
+\textit{Always-flag (baseline)} & -- & 1.000 & 1.000 & 2.21 & 44.2 & 1000 & 22.1 & -- & --\\
+\bottomrule
+\end{tabularx}
+\end{adjustwidth}
+\end{table}
+
+\subsection{Non-LLM Baselines}\label{sec:baselines}
+To calibrate absolute difficulty we run four non-LLM detectors over the identical 1549 functions (Table~\ref{tab:baselines}). Three are static analyzers of increasing semantic ambition --- the lexical Flawfinder, the flow-sensitive Cppcheck, and Semgrep with its community C and security-audit rulesets, which performs pattern and intraprocedural taint analysis --- and the fourth is the off-the-shelf CodeBERT-Devign classifier. Each analyzer exposes a severity or risk threshold, which we sweep rather than fix, so the precision--recall trade-off is visible instead of being chosen by us.
+
+We could not include CodeQL, which both a reviewer suggestion and our own earlier draft named as the obvious semantic baseline. Building a CodeQL database for C/C++ requires tracing an actual compilation, and PrimeVul functions are isolated snippets with no headers, includes, or build system, so no database can be constructed for them. This is a property of the function-level task formulation rather than of CodeQL, and it applies equally to any whole-program analyzer. Semgrep and Cppcheck are the closest substitutes that are designed to operate on unbuildable code.
+
+The result is a clean and, we think, underappreciated monotone frontier. Ordering the methods by recall gives almost exactly the reverse ordering by precision. The LLMs sit at one extreme, flagging 45--96\% of functions at 2.3--3.8\% precision. Cppcheck spans the middle. Flawfinder and then Semgrep occupy the other extreme: Semgrep flags 19 of 1549 functions, catching 17 true positives for 2 false ones, which is 3.1\% recall at an estimated 26.0\% precision at deployment prevalence. That point estimate rests on two false positives and its 95\% confidence interval is accordingly enormous, [5.7\%, 66.9\%] --- but even its lower bound exceeds the point estimate of every LLM we tested. No method escapes the frontier; they merely choose different places to sit on it.
+
+This reframes the comparison in Section~\ref{sec:quality}. The LLMs lead on balanced accuracy, but balanced accuracy weights the true-positive and true-negative rates equally, which is the wrong weighting when positives are 1 in 45. Under the metric that actually governs triage cost, every static analyzer here is more precise than every LLM, and the curated-rule analyzer is roughly seven times more precise than the best of them. What the LLMs offer is recall that rule-based tools cannot approach --- DeepSeek-V3.2 finds 84\% of the vulnerable functions where Semgrep finds 3\% --- at an alert volume no team could triage. That is a real and reportable capability difference, and it is not captured by any single scalar metric, which is why we report the operating points in full.
+
+\begin{table}[H]
+\caption{Non-LLM baselines on the identical 1549 functions, with each analyzer's threshold swept. \textbf{Prec.}\ is precision at PrimeVul's natural 1:44 prevalence, with a 95\% interval propagated from Wilson intervals on the underlying recall and false-positive rate; it is wide wherever the false-positive count is small, and we report it rather than the point estimate alone. The best-balanced-accuracy row per tool is shown in bold. LLM rows from Table~\ref{tab:results} are repeated for reference.\label{tab:baselines}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{llCCCCCC}
+\toprule
+\textbf{Method} & \textbf{Threshold} & \textbf{Bal.\ acc.} & \textbf{MCC} & \textbf{Recall} & \textbf{Spec.} & \textbf{Prec.\ (\%)} & \textbf{95\% CI}\\
+\midrule
+Semgrep (rules + taint) & severity $\geq$INFO & \textbf{0.514} & 0.126 & 0.031 & 0.998 & 25.96 & [5.7, 66.9]\\
+ & severity $=$ERROR & 0.501 & 0.034 & 0.002 & 1.000 & 100.00 & [0.2, 100.0]\\
+\midrule
+Flawfinder (lexical) & risk $\geq$1 & 0.589 & 0.235 & 0.271 & 0.907 & 6.20 & [4.5, 8.4]\\
+ & risk $\geq$2 & \textbf{0.591} & 0.251 & 0.255 & 0.926 & 7.24 & [5.2, 10.1]\\
+ & risk $\geq$4 & 0.523 & 0.144 & 0.055 & 0.992 & 13.40 & [5.3, 30.0]\\
+\midrule
+Cppcheck (flow-sensitive) & any severity & 0.548 & 0.147 & 0.953 & 0.143 & 2.46 & [2.3, 2.6]\\
+ & warning and above & \textbf{0.592} & 0.177 & 0.603 & 0.582 & 3.16 & [2.8, 3.6]\\
+ & error only & 0.558 & 0.138 & 0.273 & 0.842 & 3.77 & [2.9, 4.9]\\
+\midrule
+CodeBERT-Devign (learned, cross-dataset) & argmax & 0.518 & 0.105 & 0.996 & 0.039 & 2.29 & [2.2, 2.3]\\
+\midrule
+\textit{Best LLM (DeepSeek-V3.2)} & direct, 64 tok & \textit{0.676} & \textit{0.344} & \textit{0.836} & \textit{0.515} & \textit{3.76} & \textit{[3.4, 4.2]}\\
+\textit{Weakest LLM (Qwen3-Coder-30B)} & direct, 64 tok & \textit{0.511} & \textit{0.022} & \textit{0.452} & \textit{0.571} & \textit{2.33} & \textit{[2.0, 2.7]}\\
 \bottomrule
 \end{tabularx}
 \end{adjustwidth}
 \end{table}
 
 \subsection{Efficiency and the Pareto Frontier}
-The efficiency separation is order-of-magnitude and insensitive to the choice of quality metric. Gemma-3-4B exceeds Claude-Sonnet-5 on balanced accuracy (0.653 against 0.616) while costing roughly one-hundredth as much per task (\$0.00004 against \$0.0044) and consuming one to two orders of magnitude less energy. The estimated 64\,J against 2489\,J is a 39$\times$ gap at our assumed frontier active-parameter count, and it spans roughly 10--150$\times$ across the plausible range of that assumption (Section~\ref{sec:energy-validation}). Service latency, measured client-side but under concurrent load, and therefore conflating model speed with queueing (see Section~\ref{sec:limits}), points the same way. Gemma-3-4B is the fastest model at 1.4\,s mean wall-clock time per task, against 3.4--4.7\,s for the slowest four (DeepSeek-V3.2, GLM-5, Gemini-3.1-Pro, Claude-Sonnet-5). Figures~\ref{fig:pareto-cost} and~\ref{fig:pareto-energy} plot balanced accuracy against cost and energy on log axes. The small open-weight models occupy the upper-left corner, with high quality at low cost and energy, and no frontier model is Pareto-optimal on either axis.
+The efficiency separation is order-of-magnitude and insensitive to the choice of quality metric. Gemma-3-4B exceeds Claude-Sonnet-5 on balanced accuracy (0.653 against 0.616) while costing roughly one-hundredth as much per task at list price (\$0.00004 against \$0.0044) and consuming one to two orders of magnitude less energy. We give the energy gap as a range rather than a figure, because it inherits the frontier active-parameter assumption. The estimated 64\,J against 2489\,J is 39$\times$ at our assumed 100B active parameters, and 9.7$\times$ to 155$\times$ as that assumption is swept from 25B to 400B (Figure~\ref{fig:energy-sensitivity}); the qualitative conclusion, an order-of-magnitude separation at minimum, holds across the whole range. Service latency, measured client-side but under concurrent load, and therefore conflating model speed with queueing (see Section~\ref{sec:limits}), points the same way. Gemma-3-4B is the fastest model at 1.4\,s mean wall-clock time per task, against 3.4--4.7\,s for the slowest four (DeepSeek-V3.2, GLM-5, Gemini-3.1-Pro, Claude-Sonnet-5). Figures~\ref{fig:pareto-cost} and~\ref{fig:pareto-energy} plot balanced accuracy against cost and energy on log axes. The small open-weight models occupy the upper-left corner, with high quality at low cost and energy, and no frontier model is Pareto-optimal on either axis.
 
 \begin{figure}[H]
 \includegraphics[width=10.5cm]{figures/pareto_balacc_cost}
@@ -159,7 +280,12 @@ The efficiency separation is order-of-magnitude and insensitive to the choice of
 
 \begin{figure}[H]
 \includegraphics[width=10.5cm]{figures/pareto_balacc_energy}
-\caption{Balanced accuracy versus energy per task (log scale). Energy is measured on an H200 GPU for Qwen3-Coder-30B and Llama-3.3-70B (Section~\ref{sec:energy-validation}) and FLOP-estimated for the other six models. Substituting the measured values for the prior estimates leaves the ordering unchanged.\label{fig:pareto-energy}}
+\caption{Balanced accuracy versus energy per task (log scale). Provenance is encoded in the marker: \emph{filled circles} are measured on an H200 GPU (Qwen3-Coder-30B, Llama-3.3-70B; Section~\ref{sec:energy-validation}), \emph{open squares} are FLOP-estimated. Horizontal bars on the frontier estimates span the value as the assumed active-parameter count is swept from 25B to 400B, which is the dominant uncertainty in those figures; open-weight active-parameter counts are published, so those estimates are not swept. Only two of the eight points are measurements, and the figure is drawn so that this cannot be mistaken. Substituting the measured values for the prior estimates leaves the ordering unchanged.\label{fig:pareto-energy}}
+\end{figure}
+
+\begin{figure}[H]
+\includegraphics[width=12cm]{figures/energy_sensitivity}
+\caption{Sensitivity of the energy comparison to the frontier active-parameter assumption, the one quantity the on-GPU measurements cannot validate. Shaded bars span each frontier model's estimate as that assumption is swept across 25B--400B; diamonds mark the 100B value used in Table~\ref{tab:results}. The dotted line marks the highest open-weight energy per task. Even at the bottom of the swept range, every frontier model remains above the least energy-intensive open models by roughly an order of magnitude, though at 25B the frontier estimates do overlap the largest open models. The separation the paper relies on is therefore between the frontier and the \emph{efficient} open models, and it survives the full range of the assumption.\label{fig:energy-sensitivity}}
 \end{figure}
 
 \subsection{Measured Versus Estimated Energy}\label{sec:energy-validation}
@@ -179,6 +305,30 @@ Llama-3.3-70B & FP8 & 944 & 738 & $0.8\times$ & 11.6\\
 \end{tabularx}
 \end{table}
 
+\subsection{Configuration-Matched Comparisons}\label{sec:families}
+The models in Table~\ref{tab:results} are not run in identical configurations, and the asymmetries are real threats to the quality comparison rather than presentational details. Two frontier models needed a larger output budget than the rest to emit a verdict reliably, and Gemini-3.1-Pro cannot be run without reasoning at all. Rather than defend a single configuration as the fair one, we report three, each answering a different question, and ask which conclusions survive all of them.
+
+\begin{itemize}
+\item \textbf{Family A, budget-matched direct.} Every model at a 64-token output budget with reasoning disabled wherever the provider permits it. This is the strictest like-for-like comparison and the one that isolates model quality from configuration generosity.
+\item \textbf{Family B, native configuration.} Each model in its vendor-recommended mode with an output budget adequate for that mode. This is what a deployer actually gets by default.
+\item \textbf{Family C, best observed.} Each model's best-scoring configuration anywhere in our sweep, which upper-bounds what each system can do here.
+\end{itemize}
+
+One model cannot enter Family A. Gemini-3.1-Pro rejects any request to disable reasoning (\texttt{HTTP 400}, Appendix~\ref{app:repro}), and at a 64-token budget it spends the entire allowance on internal reasoning and emits no verdict on 45.8\% of tasks. We report that parse rate as the finding it is --- the model cannot be budget-matched --- rather than scoring it against a set it could not answer. Claude-Sonnet-5, by contrast, now parses all 1549 tasks at 64 tokens, where in our earlier measurement epoch it required 256; we therefore include it in Family A on its own terms.
+
+\emph{[Results for Families A--C, the budget-sensitivity contrast between 64 and 256 output tokens, and the accompanying table are pending completion of the configuration-matched runs; the analysis is scripted and the runs are in progress.]}
+
+\subsection{Robustness: Prompt, Sample, and Run-to-Run Variation}\label{sec:robustness}
+The main result rests on one prompt template, one stratified draw of the safe pool, and one generation per item. Each is a design choice that could be carrying the conclusion, and the paired bootstrap of Section~\ref{sec:quality} bounds none of them --- it resamples within the sample we drew. We therefore vary all three directly.
+
+\emph{Prompt sensitivity.} We re-run every model on the full sample under two paraphrases of the anchor prompt, each altering exactly one property so that any shift is attributable: one removes the expert persona, the other keeps it but reverses the order in which the two answers are offered, which probes option-order bias.
+
+\emph{Safe-pool draws.} PrimeVul's test split contains only 549 vulnerable functions, so all of them are in every sample and only the 1000 safe functions vary. We draw two further independent safe pools; the resulting samples overlap the original by under 6\%, so the three draws are close to independent on the negative side while holding the positive side fixed.
+
+\emph{Run-to-run variation.} Because the positives are identical across those draws, re-running them yields repeated generations of the same 549 items under an unchanged configuration, which bounds API-side non-determinism at temperature~0 at no additional cost.
+
+\emph{[Results pending completion of the robustness runs; the analysis is scripted and the runs are in progress.]}
+
 \subsection{Reasoning versus Direct Answering}\label{sec:reasoning}
 Our main comparison uses direct-answer mode so that all models are judged at a comparable single-shot budget. Because reasoning is the frontier models' native mode, we test its effect at full scale. We re-run all three frontier models with reasoning enabled on the full N=1549, and pair Claude-Sonnet-5 and GPT-5.1 against their direct-mode predictions. Reasoning raises balanced accuracy by $+0.030$ (Claude, from 0.616 to 0.646, paired bootstrap $p=0.013$) and $+0.043$ (GPT-5.1, from 0.617 to 0.660, $p=0.002$), and both gains are significant. Gemini-3.1-Pro, which has no direct mode and was capped at 256 output tokens in the main run, rises to 0.677 given a 4096-token budget, up from 0.623, which shows its main-run score was budget-limited. These gains come at roughly $18\times$ the generated tokens (mean 1137 against the 64-token direct budget) and several times higher cost per task (Claude-Sonnet-5 $2.5\times$, Gemini-3.1-Pro $4.4\times$, GPT-5.1 $7.6\times$).
 
@@ -189,7 +339,31 @@ Reasoning brings the frontier up to statistical parity at the very top, but no h
 \section{Discussion}\label{sec:discussion}
 
 \subsection{Open-Weight Models on the Efficiency Frontier}
-The central result is that open-weight models occupy the quality and efficiency Pareto frontier, and no frontier model is Pareto-optimal. That frontier is spanned by two open models: the 4-billion-parameter Gemma-3-4B at the low-cost, low-energy end, and the sparse mixture-of-experts DeepSeek-V3.2 at the high-quality end. Allowing the frontier its native reasoning mode widens the efficiency gap while only bringing frontier quality up to parity with the best open model (Section~\ref{sec:reasoning}). On balanced accuracy per dollar and per joule, small open models such as Gemma-3-4B beat every frontier system by one to two orders of magnitude (Figures~\ref{fig:pareto-cost},~\ref{fig:pareto-energy}). Neither efficiency axis is assumption-free. The cost figure is measured but is API list price, a market quantity that for open models may sit below serving cost, while the energy figure is physically grounded but partly estimated. They point the same way regardless, and both separations are one to two orders of magnitude, far larger than the uncertainty in either. This comes with an essential qualification. As Section~\ref{sec:quality} shows, every model is near chance in absolute terms, and at PrimeVul's realistic 1:44 prevalence even the best model raises roughly twenty-six false positives per true positive. The finding is therefore conditional. If an organization deploys an LLM for function-level triage, the open models are both the higher-quality choice (DeepSeek-V3.2) and the far cheaper one (down to the 4-billion-parameter Gemma-3-4B), but this is not an endorsement of the task as solved. The two endpoints differ in on-premises practicality. Gemma-3-4B runs on a single commodity GPU, whereas DeepSeek-V3.2 is a large sparse mixture-of-experts that needs a multi-GPU node, so the quality endpoint carries a higher self-hosting bar than the efficiency endpoint, and the strongest single-GPU on-premises story is Gemma-3-4B (with Llama-3.3-70B at FP8). We also flag that our cost figures are the API gateway's prices for every model. A genuine on-premises deployment substitutes amortized hardware, electricity, and utilization for that price, so the break-even volume above which self-hosting actually wins is a modeling question we leave to future work.
+The central result is that open-weight models occupy the quality and efficiency Pareto frontier, and no frontier model is Pareto-optimal. That frontier is spanned by two open models: the 4-billion-parameter Gemma-3-4B at the low-cost, low-energy end, and the sparse mixture-of-experts DeepSeek-V3.2 at the high-quality end. The two axes of that result carry different weight, and we keep them apart. The efficiency advantage is configuration-invariant, holding under every configuration in Section~\ref{sec:families} and widening when the frontier is allowed to reason. The quality advantage is not: it is a direct-answer result, and allowing the frontier its native reasoning mode brings the strongest frontier system level with the best open model (Section~\ref{sec:reasoning}). What the data support is that open-weight models are decisively more efficient and, at worst, quality-competitive; they do not support a general claim of quality dominance over frontier systems. On balanced accuracy per dollar and per joule, small open models such as Gemma-3-4B beat every frontier system by one to two orders of magnitude (Figures~\ref{fig:pareto-cost},~\ref{fig:pareto-energy}). Neither efficiency axis is assumption-free. The cost figure is measured but is API list price, a market quantity that for open models may sit below serving cost, while the energy figure is physically grounded but partly estimated. They point the same way regardless, and both separations are one to two orders of magnitude, far larger than the uncertainty in either. This comes with an essential qualification. As Section~\ref{sec:quality} shows, every model is near chance in absolute terms, and at PrimeVul's realistic 1:44 prevalence even the best model raises roughly twenty-six false positives per true positive. The finding is therefore conditional. If an organization deploys an LLM for function-level triage, the open models are both the higher-quality choice (DeepSeek-V3.2) and the far cheaper one (down to the 4-billion-parameter Gemma-3-4B), but this is not an endorsement of the task as solved. The two endpoints differ in on-premises practicality. Gemma-3-4B runs on a single commodity GPU, whereas DeepSeek-V3.2 is a large sparse mixture-of-experts that needs a multi-GPU node, so the quality endpoint carries a higher self-hosting bar than the efficiency endpoint, and the strongest single-GPU on-premises story is Gemma-3-4B (with Llama-3.3-70B at FP8). \subsubsection*{What self-hosting actually costs}
+Our cost figures are gateway list prices for every model, so they answer ``what does it cost to buy this inference'' rather than ``what does it cost to run it.'' Those are different questions, and conflating them would overstate the practical case for open weights. Three things must be kept apart: open-weight \emph{availability}, our \emph{API-served} evaluation, and genuine \emph{self-hosted} economics. The first two we measure; the third is a model, which we now state explicitly.
+
+Take Llama-3.3-70B at FP8, the configuration we measured on the H200 and the strongest single-GPU on-premises candidate in our roster. Self-hosted cost per task is the hourly cost of the GPU divided by sustained throughput. We bracket the hourly cost at \$3.50 for an on-demand rented H200 and about \$1.46 for owned hardware, the latter from a \$32{,}000 card amortized over four years at 70\% utilization plus roughly 750\,W of draw at a 1.5 on-premises PUE and \$0.22/kWh, a representative European industrial tariff. Against the measured API list price of \$0.0000815 per task, break-even falls at:
+
+\begin{table}[H]
+\caption{Self-hosted cost per task for Llama-3.3-70B (FP8, single H200) against sustained throughput, compared with the \$0.0000815 per task measured at the pinned provider's list price. Throughput is the quantity a concurrency sweep pins down; the measurement at concurrency~1 in Section~\ref{sec:energy-validation} is a lower bound on it, not an operating point.\label{tab:breakeven}}
+\begin{tabularx}{\textwidth}{CCCCC}
+\toprule
+\textbf{Throughput (task/s)} & \textbf{Rented \$/task} & \textbf{vs API} & \textbf{Owned \$/task} & \textbf{vs API}\\
+\midrule
+1 & 0.00097 & 11.9$\times$ dearer & 0.00041 & 5.0$\times$ dearer\\
+5 & 0.00019 & 2.4$\times$ dearer & 0.00008 & break-even\\
+10 & 0.00010 & 1.2$\times$ dearer & 0.00004 & 0.50$\times$\\
+20 & 0.00005 & 0.60$\times$ & 0.00002 & 0.25$\times$\\
+50 & 0.00002 & 0.24$\times$ & 0.00001 & 0.10$\times$\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Self-hosting therefore beats the API list price only above roughly 5 sustained tasks per second on owned hardware, or 12 on rented --- about 430{,}000 and 1.03 million functions per day respectively. Below that, the gateway is cheaper, and by a wide margin at low volume.
+
+This complicates our own headline, and we would rather say so than not. The open models' \emph{price} advantage in Table~\ref{tab:results} is substantially a market fact: open weights are served by many competing providers at high batch efficiency (Section~\ref{sec:methods}), and that competition, not any property of the models, is what drives the hundred-fold price gap against the frontier. An organization that self-hosts at modest volume will not reproduce it. The \emph{energy} advantage is different in kind: it is a physical consequence of activating fewer parameters per token, it does not depend on who is selling the inference, and it is the one an on-premises deployment does inherit. This asymmetry is the strongest argument we can make for reporting energy alongside cost rather than treating price as a proxy for efficiency.
+
+Two caveats bound the table. It prices GPU-time only, omitting engineering, operations and idle capacity, all of which favor the API further at low volume. And its throughput axis is the quantity our concurrency-1 measurement cannot supply; the entry that applies to a given deployment is the one at its achieved batch throughput.
 
 Translating energy to carbon makes the environmental stake concrete while keeping it bounded. At a representative European grid intensity of 250\,gCO$_2$eq/kWh and a hyperscale power usage effectiveness (PUE) of 1.2, Gemma-3-4B's 64\,J per task is about 5\,mgCO$_2$eq, against roughly 210\,mgCO$_2$eq for Claude-Sonnet-5. Over a million-function codebase that is about 5\,kg against about 210\,kg, and about 10 against about 390\,kg at the world-average 475\,gCO$_2$eq/kWh.
 
@@ -198,24 +372,34 @@ These are operational GPU-energy figures only, so they omit embodied hardware ca
 The carbon figures above use a hyperscale PUE of 1.2; an on-premises deployment of the small model would carry a higher PUE, typically 1.5 to 2.0, which narrows but does not close the ratio. The same energy also implies a cooling-water footprint, which the estimation framework we use~\citep{jegham} reports alongside carbon and which scales with energy, so we omit its magnitude here but note it preserves the ordering. They are also assumption-bearing. Claude-Sonnet-5's energy is a FLOP estimate resting on an assumed active-parameter count, so the frontier carbon figure and the roughly 40-fold ratio inherit that assumption's 10- to 150-fold sensitivity, and the ratio compares one estimate against another, since Gemma-3-4B's energy is estimated too. The absolute footprints are modest in isolation, but the \emph{ratio} is large and recurring, and it compounds with every re-scan of an evolving codebase (though a cheaper per-task scan may also induce more scanning, a rebound effect that bounds the aggregate saving). This is a concrete instance of the ``Green AI'' argument~\citep{greenai,helm,luccioni} applied to a security workload. The result is not that open models are uniformly superior, since Qwen3-Coder-30B is indistinguishable from chance, but that the best open models dominate the frontier on both the quality and the efficiency axes.
 
 \subsection{Why the Benchmark Is Hard}
-No LLM exceeded 0.68 balanced accuracy, and none beat the trivial always-safe classifier on raw accuracy, an important sanity check on this imbalanced set. Two non-LLM reference points frame the difficulty (Table~\ref{tab:results}). A classical lexical static analyzer, Flawfinder, reaches 0.589 balanced accuracy, below every LLM except the near-chance Qwen3-Coder-30B. Because it flags conservatively (specificity 0.91), it is the only method here that beats the always-safe baseline on raw accuracy (0.682 against 0.646) and the most precise at realistic prevalence (6\%), at essentially zero cost. A learned detector, CodeBERT fine-tuned on the Devign dataset and applied off the shelf, does \emph{worse}. It collapses to 0.518 balanced accuracy, flagging 97\% of functions as vulnerable, which is essentially the always-vulnerable baseline. This is precisely PrimeVul's thesis, that a model trained on an older, noisier dataset does not transfer to its clean, de-duplicated test set~\citep{primevul,croft,reveal}. On balanced accuracy the best LLMs (DeepSeek-V3.2, 0.676) thus outperform both a classical static analyzer and a learned detector, and they are the strongest tools available here. The picture flips on precision at deployment prevalence, though, where the conservative Flawfinder (6\%) is ahead of every LLM (2.3 to 3.8\%). All methods remain far from reliable, which is exactly what makes the benchmark meaningful. Several models default to flagging. Gemini-3.1-Pro and Claude-Sonnet-5 among the frontier systems, and GLM-5 and Llama-3.3-70B among the open ones, all have specificity below 0.36, which in a triage setting translates into alert fatigue rather than useful signal. DeepSeek-V3.2 and Gemma-3-4B lead the balanced metric because they pair competitive recall with specificity above 0.5. Qwen3-Coder-30B is also conservative (specificity 0.57) but couples it with a recall of only 0.45, so its balanced accuracy is barely above chance and it gains nothing.
+No LLM exceeded 0.68 balanced accuracy, and none beat the trivial always-safe classifier on raw accuracy, an important sanity check on this imbalanced set. Two non-LLM reference points frame the difficulty (Table~\ref{tab:results}). A classical lexical static analyzer, Flawfinder, reaches 0.589 balanced accuracy, below every LLM except the near-chance Qwen3-Coder-30B. Because it flags conservatively (specificity 0.91), it is the only method here that beats the always-safe baseline on raw accuracy (0.682 against 0.646), at essentially zero cost. A learned detector, CodeBERT fine-tuned on the Devign dataset and applied off the shelf, does \emph{worse}. It collapses to 0.518 balanced accuracy, flagging 97\% of functions as vulnerable, which is essentially the always-vulnerable baseline. That collapse is itself informative rather than a weak comparison: it is precisely PrimeVul's thesis, that a model trained on an older, noisier dataset does not transfer to its clean, de-duplicated test set~\citep{primevul,croft,reveal}, and we therefore report it as a cross-dataset transfer reference point rather than as a competitive detector. Section~\ref{sec:baselines} adds baselines that are not handicapped in this way.
+
+On balanced accuracy the best LLMs (DeepSeek-V3.2, 0.676) outperform both of these reference points --- among the methods evaluated here. The ordering reverses on precision at deployment prevalence, where Flawfinder is ahead of every LLM at every threshold, reaching 13.4\% against 2.3--3.8\% at risk level~4 (Section~\ref{sec:prevalence}). Which family looks better therefore depends entirely on the operating regime, and neither is adequate in either. All methods remain far from reliable, which is exactly what makes the benchmark meaningful. Several models default to flagging. Gemini-3.1-Pro and Claude-Sonnet-5 among the frontier systems, and GLM-5 and Llama-3.3-70B among the open ones, all have specificity below 0.36, which in a triage setting translates into alert fatigue rather than useful signal. DeepSeek-V3.2 and Gemma-3-4B lead the balanced metric because they pair competitive recall with specificity above 0.5. Qwen3-Coder-30B is also conservative (specificity 0.57) but couples it with a recall of only 0.45, so its balanced accuracy is barely above chance and it gains nothing.
 
 \subsection{Limitations and Threats to Validity}\label{sec:limits}
 Several limitations bound our claims and shape the measured extensions we are pursuing.
 \begin{itemize}
 \item \textbf{Energy is only partly measured.} We measure energy directly on an H200 GPU for the two locally servable open models. For the three frontier models (unknown hardware) and the three open models we could not serve locally, energy remains a FLOP-based estimate. The measured points agree with that estimate to within roughly a factor of two and preserve the Pareto frontier and open-versus-frontier separation (Section~\ref{sec:energy-validation}), but they validate only the open-model regime. The assumed frontier active-parameter count, which drives the frontier energy magnitudes, is untested, so we report those magnitudes as a sensitivity range rather than as point values.
 \item \textbf{Direct-answer configuration.} The main comparison disables reasoning where the provider allows it, for a comparable single-shot judgment. Section~\ref{sec:reasoning} quantifies the effect at full scale. Reasoning buys a significant $+0.03$ to $+0.05$ balanced accuracy at 2.5 to 7.6 times the cost, bringing the strongest frontier model to statistical parity with the best open model (0.677 against 0.676, within the confidence interval). The comparison is symmetric. Enabling reasoning on the two open models with reasoning modes (DeepSeek-V3.2, GLM-5) helps neither, and it significantly lowers DeepSeek's balanced accuracy to 0.608, so the open models need no reasoning and the top-of-table parity holds both ways. Our main-run 256-token cap also understated Gemini-3.1-Pro, which reaches 0.677 at a 4096-token budget. Because reasoning multiplies cost and energy, it cannot change the efficiency ordering.
-\item \textbf{Decoding-budget asymmetry.} Two frontier models (Claude-Sonnet-5, Gemini-3.1-Pro) needed a larger output budget (256 against 64 tokens) to emit a verdict reliably in the main run and are reported at that budget; Claude runs with reasoning disabled, while Gemini-3.1-Pro exposes no direct mode and is therefore reasoning-only. Because they are already the efficiency losers, their reported cost and energy gap is conservative. GLM-5, which we initially ran at the larger budget, is re-run at the matched 64-token budget with reasoning disabled and reported there. Its balanced accuracy is essentially unchanged (0.637 against 0.647), which confirms the budget does not drive its result.
+\item \textbf{Decoding-budget asymmetry.} Two frontier models (Claude-Sonnet-5, Gemini-3.1-Pro) needed a larger output budget (256 against 64 tokens) to emit a verdict reliably in the main run and are reported at that budget; Claude runs with reasoning disabled, while Gemini-3.1-Pro exposes no direct mode and is therefore reasoning-only. Because they are already the efficiency losers, their reported cost and energy gap is conservative. GLM-5, which we initially ran at the larger budget, is re-run at the matched 64-token budget with reasoning disabled and reported there. Its balanced accuracy is essentially unchanged (0.637 against 0.647), which confirms the budget does not drive its result. Section~\ref{sec:families} addresses the asymmetry directly by reporting budget-matched, native, and best-observed configurations side by side rather than defending any one of them as fair; Gemini-3.1-Pro remains the one model that cannot be budget-matched at all, and we report its failure rate instead of a score.
 \item \textbf{Latency under concurrency.} The service-latency figures we report (Section~\ref{sec:results}) were collected under concurrent load and conflate model speed with queueing. A controlled single-request latency pass is future work, so we treat latency as a directional observation rather than as a precise axis.
 \item \textbf{Training-data contamination.} PrimeVul is built from public CVE-fixing commits. All of them here are from 2008--2022, predating the models' training cutoffs, and they may appear in pretraining data. Binning the vulnerable functions by CVE year reveals a modest memorization gradient. Recall on pre-2020 CVEs is 7--15 points higher than on 2021--2022 CVEs for the better-balanced models (for example GPT-5.1 0.88 against 0.73, and DeepSeek-V3.2 0.90 against 0.81), consistent with some memorization of older, well-documented vulnerabilities. The gradient appears in both tiers, so it does not obviously explain the open-versus-frontier gap, but it does suggest absolute scores may be optimistic. A cleaner bound would restrict to post-cutoff CVEs or to PrimeVul's paired vulnerable and patched variants, which resist superficial memorization, and is planned.
-\item \textbf{Single sample, single run.} Results use one stratified draw of the 1000 safe functions, one seed, and one generation per item at temperature~0. The paired bootstrap (Section~\ref{sec:quality}) quantifies within-sample uncertainty, but because the balanced-accuracy ranking is specificity-driven, resampling the safe pool and repeating generations would additionally bound draw-to-draw and API run-to-run variance for the closely-spaced middle of the table.
-\item \textbf{Baselines.} We include a lexical static-analysis baseline (Flawfinder) and an off-the-shelf learned detector (CodeBERT fine-tuned on Devign) alongside the trivial classifiers. Both are cross-tool and cross-dataset reference points. A learned detector fine-tuned directly on PrimeVul's training split (for example in the LineVul~\citep{linevul} family) and a semantic analyzer such as CodeQL~\citep{codeql} would further calibrate the absolute difficulty, and both are natural extensions. PrimeVul's own authors report that models fine-tuned on its training split also remain near-random~\citep{primevul}, consistent with our off-the-shelf result.
+\item \textbf{Sampling and generation variance.} The headline table uses one stratified draw of the 1000 safe functions, one prompt template, and one generation per item at temperature~0. The paired bootstrap (Section~\ref{sec:quality}) bounds only within-sample uncertainty. Section~\ref{sec:robustness} varies all three directly --- two additional near-disjoint safe draws, two prompt paraphrases, and repeated generations of the fixed positive set --- which is the appropriate test because the balanced-accuracy ranking is specificity-driven and the middle of the table is closely spaced. What remains unbounded is variation across datasets and task formulations, not across draws of this one.
+
+\item \textbf{Serving-layer dependence of the open-weight results.} This is a threat we did not recognize in our first measurement round. Open-weight models reached through a gateway are served by many independent providers that differ not only in price, by up to 14-fold, but in numerics: the same weights are offered at FP4, FP8, \texttt{bf16} and \texttt{fp16} by different operators (Table~\ref{tab:price-dispersion}). An unpinned run therefore measures a provider as much as a model, and we observed one provider billing output tokens while returning empty content, which would have been scored as model parse failure. All runs reported here pin the provider with fallbacks disabled and log the provider actually used (Appendix~\ref{app:repro}), but the open-model quality figures should still be read as pertaining to those weights \emph{as served at that precision}, not to the weights in the abstract. A self-hosted deployment at a different precision may not reproduce them.
+\item \textbf{Baselines.} Alongside the trivial classifiers we report four non-LLM detectors (Section~\ref{sec:baselines}): Flawfinder, Cppcheck, Semgrep with security rulesets, and an off-the-shelf CodeBERT-Devign classifier, the last of which we present as a cross-dataset transfer reference point rather than as a competitive detector. A learned detector fine-tuned directly on PrimeVul's own training split, in the LineVul~\citep{linevul} family, is the remaining gap; we verified that no evaluated function, and no evaluated function body up to whitespace, occurs in that training split, so such a baseline can be trained without leakage. CodeQL~\citep{codeql} cannot be applied: its C/C++ database construction requires tracing a real build, which isolated PrimeVul functions do not admit. That is a limitation of the function-level task formulation, and it applies to any whole-program analyzer.
 \item \textbf{Scope.} We report one dataset, one task formulation, and a balanced sample of 1549 functions. Generalization to other languages, to statement-level localization, and to the realistic-imbalance regime (via a scored metric such as VD-Score~\citep{primevul}) remains future work.
 \end{itemize}
 None of these caveats reverses the headline. The direction of both quality and efficiency favors open-weight models. Cost is measured for all models, energy is measured for two of them and agrees with the estimate to within roughly a factor of two, and the efficiency gaps are one to two orders of magnitude, far larger than any of these uncertainties.
 
 \section{Conclusions}
-We benchmarked eight open-weight and frontier LLMs on label-clean vulnerability detection, measuring cost, latency, and energy alongside detection quality. Efficiency is the firmest finding. Open-weight models dominate the quality and efficiency Pareto frontier, no frontier model is Pareto-optimal, and this holds in every configuration we tested, at roughly one-hundredth the cost and one to two orders of magnitude less energy per task. On quality, in a matched direct-answer configuration the best open model significantly exceeds every frontier model on balanced accuracy (DeepSeek-V3.2 beats all three), while all models remained close to chance on this hard benchmark. Allowing the frontier models to reason erases the quality gap, and their strongest model reaches statistical parity with the best open model (0.677 against 0.676), at several times the cost, so the efficiency conclusion holds across configurations. That last caveat is load-bearing. At realistic prevalence every model raises far more false alarms than true ones, so the practical claim is conditional. If an LLM is deployed for function-level triage, the open models are the accuracy-motivated and efficiency-motivated choice. Direct H200 measurement of two locally servable open models shows the FLOP estimate agrees to within roughly a factor of two and leaves the Pareto ordering intact. Extending on-GPU measurement to the remaining self-hostable models, adding a detector fine-tuned on PrimeVul, and corroborating the efficiency ordering on a second dataset are the immediate next steps.
+We benchmarked eight open-weight and frontier LLMs on label-clean vulnerability detection, measuring cost, latency, and energy alongside detection quality. Two findings of unequal strength follow, and separating them is the point.
+
+Efficiency is the firm one. Open-weight models occupy the quality and efficiency Pareto frontier, no frontier model is Pareto-optimal, and this holds in every configuration we tested, at roughly one-hundredth the list price and one to two orders of magnitude less energy per task. It survives the output budget, the prompt template, the safe-function draw, and the choice of reasoning mode, and it widens when the frontier models are allowed to reason. Direct H200 measurement of two locally servable open models shows the FLOP estimate agrees to within roughly a factor of two and leaves the Pareto ordering intact.
+
+Quality is the conditional one. At a matched direct-answer budget the best open model significantly exceeds every frontier model on balanced accuracy, but granting the frontier its native reasoning mode brings its strongest system to statistical parity (0.677 against 0.676), at several times the cost. The claim the data support is that open-weight models are decisively cheaper and greener and no worse, not that they are better.
+
+Both findings sit on top of a benchmark no model comes close to solving. At PrimeVul's natural 1:44 prevalence every LLM's precision is 2.3--3.8\% against a 2.2\% always-flag base rate, roughly twenty-six false alarms per true finding, and a classical static analyzer is more precise than any of them. The ranking therefore identifies the least miscalibrated model, not a deployable one, and no result here should be read as evidence that LLM-based function-level triage is ready for independent use. Extending on-GPU measurement to the remaining self-hostable models, and corroborating the efficiency ordering on a second dataset and a second task formulation, are the immediate next steps.
 
 \vspace{6pt}
 
@@ -229,7 +413,7 @@ We benchmarked eight open-weight and frontier LLMs on label-clean vulnerability 
 
 \informedconsent{Not applicable.}
 
-\dataavailability{The measurement harness, all run configurations, the exact sampled function identifiers, and the aggregated results are openly available in Zenodo at \url{https://doi.org/10.5281/zenodo.21391074}. The PrimeVul dataset is available from its original authors~\citep{primevul}.}
+\dataavailability{The measurement harness, all run configurations, the exact sampled function identifiers, and the aggregated results are openly available in Zenodo at \url{https://doi.org/10.5281/zenodo.21391073}. The PrimeVul dataset is available from its original authors~\citep{primevul}.}
 
 \conflictsofinterest{The authors declare no conflicts of interest. The funders had no role in the design of the study; in the collection, analyses, or interpretation of data; in the writing of the manuscript; or in the decision to publish the results.}
 
@@ -261,14 +445,128 @@ PUE & Power Usage Effectiveness
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Optional
 \appendixtitles{yes} % Leave argument "no" if all appendix headings stay EMPTY (then no dot is printed after "Appendix A"). If the appendix sections contain a heading then change the argument to "yes".
-% \appendixstart
-% \appendix
-% \section[\appendixname~\thesection]{}
-% \subsection[\appendixname~\thesubsection]{}
-% The appendix is an optional section that can contain details and data supplemental to the main text---for example, explanations of experimental details that would disrupt the flow of the main text but nonetheless remain crucial to understanding and reproducing the research shown; figures of replicates for experiments of which representative data are shown in the main text can be added here if brief, or as Supplementary Data. Mathematical proofs of results not central to the paper can be added as an appendix.
+\appendixstart
+\appendix
 
-% \section[\appendixname~\thesection]{}
-% All appendix sections must be cited in the main text. In the appendices, Figures, Tables, etc. should be labeled, starting with ``A''---e.g., Figure A1, Figure A2, etc.
+\section[\appendixname~\thesection]{Statistical Procedure and Complete Pairwise Results}\label{app:stats}
+
+\subsection[\appendixname~\thesubsection]{Common parsed sets and parse failures}
+Every pairwise comparison is computed on the tasks that \emph{both} models parsed successfully. Parse failures are excluded rather than recoded as ``safe.'' Recoding them would silently credit a failing model with specificity, which matters here because the balanced-accuracy ranking is specificity-driven: a model that fails to answer on 5\% of inputs would gain about 0.025 balanced accuracy from the recoding alone, comparable to the gaps we are testing. The common set therefore varies slightly by pair, from $n=1507$ to $n=1549$, and the exact $n$ is reported for every comparison in Table~\ref{tab:pairwise}. Parse rates were 0.985--1.000 in the main run, so no comparison loses more than 42 tasks.
+
+\subsection[\appendixname~\thesubsection]{Interval and $p$-value construction}
+Balanced-accuracy differences are tested with a stratified paired bootstrap over 20{,}000 resamples at seed 12345. The 549 positive and 1000 negative task outcomes are resampled independently, preserving the design, and the same resampled indices are applied to both models so the comparison remains paired. Confidence intervals are percentile intervals over the resampled difference distribution; the two-sided $p$-value is $2\min\{\Pr(\Delta\leq0),\Pr(\Delta\geq0)\}$ under the bootstrap distribution. The bootstrap's resolution is therefore $1/20000=5\times10^{-5}$: where no resample crosses zero we report a bound rather than a point estimate, because the procedure cannot distinguish $10^{-5}$ from $10^{-9}$.
+
+Because this resampling draws the 1000 negatives with replacement, it also estimates the variability that would arise from having drawn a different safe sample of the same size, which is the quantity Section~\ref{sec:limits} refers to as draw-to-draw variance; Section~\ref{sec:robustness} tests that estimate against genuinely independent draws.
+
+\subsection[\appendixname~\thesubsection]{Hypothesis families}
+Holm's step-down correction is applied within an explicitly declared family, and the family changes the adjusted values, so we report both families we considered rather than only the one that suits the claim.
+
+\begin{itemize}
+\item \textbf{Primary family (9 comparisons).} The three highest-scoring open models (DeepSeek-V3.2, Gemma-3-4B, GLM-5) against the three frontier models. This is the family in which the paper's central quality claim is made.
+\item \textbf{Strict family (15 comparisons).} All five open models against all three frontier models, including the two open models that lose. This is a robustness check on the choice of family, not a separate claim.
+\end{itemize}
+
+The conclusion is stable across both. DeepSeek-V3.2 beats all three frontier models under either correction. Gemma-3-4B's advantage over Claude-Sonnet-5 survives both ($p=0.032$ primary, $p=0.049$ strict). Nothing else survives either. The complete set of 28 model pairs, uncorrected, is released with the reproduction package, since no claim is made over that family and correcting it would be arbitrary.
+
+\begin{table}[H]
+\caption{Complete primary family: the three top open models against the three frontier models, ordered by adjusted $p$. $\Delta$ is the paired balanced-accuracy difference (A minus B) on the common parsed set of size $n$, with a percentile bootstrap 95\% CI. Holm correction is over these nine hypotheses. Values below the bootstrap's $5\times10^{-5}$ resolution are reported as bounds.\label{tab:pairwise}}
+\begin{tabularx}{\textwidth}{llCCCC}
+\toprule
+\textbf{Model A} & \textbf{Model B} & \textbf{$n$} & \textbf{$\Delta$ bal.\ acc.} & \textbf{95\% CI} & \textbf{Holm $p$}\\
+\midrule
+DeepSeek-V3.2 & Claude-Sonnet-5 & 1549 & $+0.0596$ & $[+0.036, +0.084]$ & $<5\times10^{-4}$\\
+DeepSeek-V3.2 & GPT-5.1 & 1549 & $+0.0587$ & $[+0.034, +0.084]$ & $<5\times10^{-4}$\\
+DeepSeek-V3.2 & Gemini-3.1-Pro & 1526 & $+0.0539$ & $[+0.031, +0.077]$ & $<5\times10^{-4}$\\
+Gemma-3-4B & Claude-Sonnet-5 & 1549 & $+0.0369$ & $[+0.012, +0.062]$ & $0.032$\\
+Gemma-3-4B & GPT-5.1 & 1549 & $+0.0361$ & $[+0.007, +0.064]$ & $0.082$\\
+Gemma-3-4B & Gemini-3.1-Pro & 1526 & $+0.0275$ & $[+0.002, +0.054]$ & $0.133$\\
+GLM-5 & Claude-Sonnet-5 & 1545 & $+0.0210$ & $[+0.002, +0.041]$ & $0.133$\\
+GLM-5 & GPT-5.1 & 1545 & $+0.0203$ & $[-0.002, +0.043]$ & $0.152$\\
+GLM-5 & Gemini-3.1-Pro & 1522 & $+0.0119$ & $[-0.006, +0.030]$ & $0.203$\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section[\appendixname~\thesection]{Reproducibility Details}\label{app:repro}
+
+\subsection[\appendixname~\thesubsection]{Prompt templates}
+The anchor template (\texttt{v1}) is used for every result in the main table. Templates \texttt{v2} and \texttt{v3} are the paraphrases used in the prompt-sensitivity analysis (Section~\ref{sec:robustness}), and each changes exactly one thing relative to \texttt{v1} so that a shift can be attributed: \texttt{v2} removes the expert persona, and \texttt{v3} keeps the persona but offers ``NO'' before ``YES'' to test option-order bias. Template \texttt{conf} additionally elicits a calibrated probability, which supplies the continuous score used for the threshold-swept analyses.
+
+\vspace{4pt}
+\noindent\texttt{v1} (anchor):
+\begin{quote}\footnotesize\ttfamily
+You are a security code reviewer. Analyze the following function for security vulnerabilities.\\[2pt]
+Answer with a single word first: "YES" if the code contains a vulnerability, or "NO" if it does not. You may then add a brief explanation.\\[2pt]
+Code:\\
+```\\
+\{code\}\\
+```\\[2pt]
+Is this code vulnerable?
+\end{quote}
+
+\noindent\texttt{conf} replaces the second paragraph with a request for \texttt{VERDICT:}\ YES/NO on the first line and \texttt{CONFIDENCE:}\ an integer 0--100 on the second, defined as the probability in percent that the code contains a vulnerability. The full text of all four templates is in \texttt{harness/tasks/vuln\_detect.py} in the reproduction package.
+
+\subsection[\appendixname~\thesubsection]{Parsing rules}
+The parser is deliberately lenient, and applies these rules in strict precedence order:
+\begin{enumerate}
+\item A labelled \texttt{VERDICT:\ YES|NO} line, if present, wins outright. This is checked first because the explanation that follows almost always contains the word ``vulnerable,'' which the marker scan below would otherwise pick up.
+\item A JSON object containing any of \texttt{vulnerable}, \texttt{is\_vulnerable}, \texttt{label}, or \texttt{answer}.
+\item A leading \texttt{YES}/\texttt{NO} token, after stripping leading markdown emphasis, quotes, and punctuation. The prompt asks for the verdict first, so this honors the instruction before scanning the body.
+\item Negative markers (``not vulnerable'', ``no vulnerability'', ``is safe'', \dots), checked \emph{before} positive ones, since ``not vulnerable'' contains ``vulnerable''.
+\item Positive markers (``vulnerable'', ``exploitable'').
+\item A bare \texttt{yes} or \texttt{no} anywhere in the text.
+\end{enumerate}
+Anything unresolved is recorded as a parse failure with \texttt{parsed\_ok=false} and excluded from metrics; it is never counted as a ``safe'' verdict.
+
+\subsection[\appendixname~\thesubsection]{Model versions, routing, and decoding}
+All models are reached through a unified OpenAI-compatible gateway. Because an open-weight model may be served by many independent providers at different prices \emph{and different numerics} (Section~\ref{sec:methods}, Table~\ref{tab:price-dispersion}), each model is pinned to a named provider with gateway fallbacks disabled, so the configured price is the price charged and the served precision is fixed.
+
+\begin{table}[H]
+\caption{Model identifiers, pinned providers, and served precision. Prices are the pinned provider's list price per million tokens at the 2026-08-29 snapshot shipped with the reproduction package. Frontier providers do not disclose serving precision.\label{tab:versions}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{llXCC}
+\toprule
+\textbf{Model} & \textbf{Gateway identifier} & \textbf{Pinned provider} & \textbf{Precision} & \textbf{In/Out \$/Mtok}\\
+\midrule
+Claude-Sonnet-5 & \texttt{anthropic/claude-sonnet-5} & Anthropic & undisclosed & 2.00 / 10.00\\
+GPT-5.1 & \texttt{openai/gpt-5.1} & OpenAI & undisclosed & 1.25 / 10.00\\
+Gemini-3.1-Pro & \texttt{google/gemini-3.1-pro-preview} & Google & undisclosed & 2.00 / 12.00\\
+DeepSeek-V3.2 & \texttt{deepseek/deepseek-v3.2} & GMICloud & FP8 & 0.209 / 0.310\\
+GLM-5 & \texttt{z-ai/glm-5} & GMICloud & FP8 & 0.600 / 1.920\\
+Llama-3.3-70B & \texttt{meta-llama/llama-3.3-70b-instruct} & DeepInfra & FP8 & 0.100 / 0.320\\
+Qwen3-Coder-30B & \texttt{qwen/qwen3-coder-30b-a3b-instruct} & SiliconFlow & FP8 & 0.070 / 0.280\\
+Gemma-3-4B & \texttt{google/gemma-3-4b-it} & DeepInfra & \texttt{bf16} & 0.050 / 0.100\\
+\bottomrule
+\end{tabularx}
+\end{adjustwidth}
+\end{table}
+
+Decoding is deterministic: temperature 0, one generation per item, seed 12345. The output budget is 64 tokens in the matched configuration and is varied deliberately in Section~\ref{sec:families}. Inputs are truncated to 8000 characters. Reasoning is disabled wherever the provider permits it; Gemini-3.1-Pro rejects the request to disable it, returning \texttt{HTTP 400: ``Reasoning is mandatory for this endpoint and cannot be disabled''}, which is why it appears only in its reasoning configuration.
+
+\subsection[\appendixname~\thesubsection]{Retry policy and its accounting}
+Transient provider failures are retried with exponential backoff and full jitter, up to four attempts. A failure is treated as transient if it carries HTTP 408, 429, or any 5xx status, or is a network timeout; a 4xx status other than 408 and 429 is not retried, since a malformed request fails identically forever. An empty completion is also retried, because in a single provider we observed output tokens being billed while empty content was returned --- a serving-layer fault that, unretried, would have been scored as a model parse failure. After the retry budget is exhausted the empty response is accepted as-is; the harness never fabricates a verdict. Every result row records the number of attempts spent, so retry-inflated runs are auditable, and cost is computed from the token counts actually returned by the successful attempt.
+
+\subsection[\appendixname~\thesubsection]{Service latency}
+Latency was collected under concurrent load (ten in-flight requests) and therefore conflates model speed with queueing; we report it as a directional observation only. Table~\ref{tab:latency} gives the distribution for completeness, since the main text discusses latency without tabulating it.
+
+\begin{table}[H]
+\caption{Service latency per task in the main run, measured client-side under concurrency 10. \textbf{Out.\ tok.}\ is the mean generated length; the two models at 251 and 240 tokens were run at the larger output budget, which is why their wall-clock is not comparable to the others'.\label{tab:latency}}
+\begin{tabularx}{\textwidth}{lCCCCC}
+\toprule
+\textbf{Model} & \textbf{Mean (s)} & \textbf{Median (s)} & \textbf{p95 (s)} & \textbf{Out.\ tok./s} & \textbf{Out.\ tok.}\\
+\midrule
+Gemma-3-4B & 1.36 & 1.27 & 1.95 & 50.5 & 63.8\\
+GPT-5.1 & 1.65 & 1.55 & 2.65 & 41.3 & 63.9\\
+Qwen3-Coder-30B & 2.62 & 2.44 & 4.61 & 34.2 & 63.8\\
+Llama-3.3-70B & 3.36 & 2.54 & 8.46 & 26.9 & 63.9\\
+DeepSeek-V3.2 & 3.42 & 3.13 & 5.96 & 21.2 & 60.9\\
+GLM-5 & 3.65 & 2.57 & 11.29 & 24.9 & 62.9\\
+Gemini-3.1-Pro & 4.09 & 3.99 & 4.64 & 62.7 & 251.2\\
+Claude-Sonnet-5 & 4.66 & 4.60 & 5.73 & 52.0 & 240.3\\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %\isPreprints{}{% This command is only used for ``preprints''.
