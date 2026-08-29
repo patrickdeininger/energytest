@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 
 MIRROR = "starsofchance/PrimeVul"
@@ -100,6 +101,50 @@ def evaluated_ids() -> dict:
     return derived
 
 
+def resolve_checkpoint(spec: str) -> str:
+    """Resolve --from-checkpoint. 'auto' finds the checkpoint training actually
+    selected.
+
+    Training runs with load_best_model_at_end on eval_loss, so the model that
+    produced a given set of scores is whichever epoch had the lowest validation
+    loss -- not necessarily the last one on disk. Scoring a different checkpoint
+    would silently produce numbers that do not correspond to the run we are
+    building on, so this reads the choice out of the trainer state rather than
+    guessing.
+    """
+    if spec != "auto":
+        return spec
+
+    import glob
+
+    states = sorted(
+        glob.glob(str(OUTDIR / "ckpt" / "checkpoint-*" / "trainer_state.json")),
+        key=lambda p: int(p.split("checkpoint-")[1].split(os.sep)[0].split("/")[0]),
+    )
+    if not states:
+        raise SystemExit(f"no checkpoints under {OUTDIR / 'ckpt'}; train first")
+    st = json.loads(Path(states[-1]).read_text(encoding="utf-8"))
+
+    best = st.get("best_model_checkpoint")
+    if best and Path(best).is_dir():
+        print(f"checkpoint: {best} (recorded by the trainer as best)")
+        return best
+
+    evals = [(h["eval_loss"], h["step"]) for h in st.get("log_history", [])
+             if "eval_loss" in h]
+    if evals:
+        step = min(evals)[1]
+        cand = OUTDIR / "ckpt" / f"checkpoint-{step}"
+        if cand.is_dir():
+            print(f"checkpoint: {cand} (lowest eval_loss {min(evals)[0]:.4f} "
+                  f"in the log history)")
+            return str(cand)
+
+    last = str(Path(states[-1]).parent)
+    print(f"checkpoint: {last} (no best recorded; falling back to the last)")
+    return last
+
+
 def check_leakage(train_rows, eval_ids: set, eval_bodies: dict) -> dict:
     by_id = sum(1 for r in train_rows if str(r["idx"]) in eval_ids)
     train_bodies = {_norm(r["func"]) for r in train_rows}
@@ -122,9 +167,10 @@ def main() -> int:
     ap.add_argument("--no-class-weight", action="store_true",
                     help="disable inverse-frequency class weighting (reproduces the "
                          "collapse-to-majority failure; kept only for the record)")
-    ap.add_argument("--from-checkpoint", default=None,
-                    help="skip training and score with an existing checkpoint, e.g. "
-                         "harness/runs/primevul_trained_baseline/ckpt/checkpoint-XXXX")
+    ap.add_argument("--from-checkpoint", default=None, nargs="?", const="auto",
+                    help="skip training and score an existing checkpoint. Pass 'auto' "
+                         "(or give the flag with no value) to use the one the trainer "
+                         "recorded as best, which is what produced the saved scores.")
     ap.add_argument("--valid-subsample", type=int, default=6000,
                     help="validation rows used for threshold selection (the full "
                          "split is 23,948; a subsample keeps the pass short and the "
@@ -214,9 +260,9 @@ def main() -> int:
     trainer = TrainerCls(model=model, args=targs,
                          train_dataset=DS(train_rows), eval_dataset=DS(valid_rows))
     if args.from_checkpoint:
-        print(f"loading checkpoint {args.from_checkpoint} (skipping training)")
-        model = AutoModelForSequenceClassification.from_pretrained(
-            args.from_checkpoint, num_labels=2)
+        ckpt = resolve_checkpoint(args.from_checkpoint)
+        print(f"loading {ckpt} (skipping training)")
+        model = AutoModelForSequenceClassification.from_pretrained(ckpt, num_labels=2)
         trainer.model = model.to(trainer.args.device)
     else:
         trainer.train()
