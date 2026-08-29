@@ -119,6 +119,9 @@ def main() -> int:
     ap.add_argument("--lr", type=float, default=2e-5)
     ap.add_argument("--max-length", type=int, default=512)
     ap.add_argument("--seed", type=int, default=12345)
+    ap.add_argument("--no-class-weight", action="store_true",
+                    help="disable inverse-frequency class weighting (reproduces the "
+                         "collapse-to-majority failure; kept only for the record)")
     args = ap.parse_args()
 
     OUTDIR.mkdir(parents=True, exist_ok=True)
@@ -170,6 +173,27 @@ def main() -> int:
     eval_rows = [r for r in read_jsonl(LOCAL_TEST) if str(r["idx"]) in labels]
     model = AutoModelForSequenceClassification.from_pretrained(args.model, num_labels=2)
 
+    # PrimeVul's training split is 2.77% positive (4,862 of 175,797). Under plain
+    # cross-entropy the optimum is to predict "safe" everywhere, which scores 97.2%
+    # training accuracy and yields a detector with recall 0 -- we produced exactly
+    # that on the first attempt. Inverse-frequency weighting removes that optimum.
+    n_pos = sum(int(r["target"]) for r in train_rows)
+    n_neg = len(train_rows) - n_pos
+    w = torch.tensor([1.0, n_neg / max(n_pos, 1)], dtype=torch.float)
+    print(f"class balance: {n_pos} positive / {n_neg} negative "
+          f"({n_pos/len(train_rows)*100:.2f}%); positive class weight "
+          f"{w[1]:.1f}" + (" [DISABLED]" if args.no_class_weight else ""))
+
+    class WeightedTrainer(Trainer):
+        def compute_loss(self, model, inputs, return_outputs=False, **kw):
+            lab = inputs.pop("labels")
+            out = model(**inputs)
+            loss = torch.nn.functional.cross_entropy(
+                out.logits, lab, weight=w.to(out.logits.device))
+            return (loss, out) if return_outputs else loss
+
+    TrainerCls = Trainer if args.no_class_weight else WeightedTrainer
+
     targs = TrainingArguments(
         output_dir=str(OUTDIR / "ckpt"), num_train_epochs=args.epochs,
         per_device_train_batch_size=args.batch_size,
@@ -180,8 +204,8 @@ def main() -> int:
         logging_steps=200, seed=args.seed, fp16=torch.cuda.is_available(),
         report_to=[],
     )
-    trainer = Trainer(model=model, args=targs,
-                      train_dataset=DS(train_rows), eval_dataset=DS(valid_rows))
+    trainer = TrainerCls(model=model, args=targs,
+                         train_dataset=DS(train_rows), eval_dataset=DS(valid_rows))
     trainer.train()
 
     logits = trainer.predict(DS(eval_rows)).predictions
@@ -204,8 +228,45 @@ def main() -> int:
         "precision_at_1to44": precision_at_prevalence(rec, spec, PREVALENCE),
         "precision_at_1to44_ci": [precision_at_prevalence(tl, 1 - fh, PREVALENCE),
                                   precision_at_prevalence(th, 1 - fl, PREVALENCE)],
-        "epochs": args.epochs, "seed": args.seed, "leakage": leak,
+        "epochs": args.epochs, "seed": args.seed,
+        "class_weighted": not args.no_class_weight, "leakage": leak,
     }
+
+    # A collapsed argmax (predicting one class everywhere) can still hide a usable
+    # ranking, so always report the threshold-free view. Without this we would have
+    # concluded "trained detectors are near-random on PrimeVul" from what was
+    # actually a class-imbalance training failure.
+    from sklearn.metrics import average_precision_score, roc_auc_score
+
+    out["roc_auc"] = float(roc_auc_score(ys, probs))
+    out["pr_auc"] = float(average_precision_score(ys, probs))
+    out["score_min"], out["score_max"] = float(probs.min()), float(probs.max())
+
+    best = None
+    for thr in np.unique(np.round(probs, 4)):
+        p = (probs >= thr).astype(int)
+        t_tp = int(((p == 1) & (ys == 1)).sum()); t_fp = int(((p == 1) & (ys == 0)).sum())
+        t_fn = int(((p == 0) & (ys == 1)).sum()); t_tn = int(((p == 0) & (ys == 0)).sum())
+        ba = balanced_accuracy(t_tp, t_fp, t_fn, t_tn)
+        if best is None or ba > best["bal_acc"]:
+            best = {"threshold": float(thr), "bal_acc": ba,
+                    "recall": t_tp / max(t_tp + t_fn, 1),
+                    "specificity": t_tn / max(t_tn + t_fp, 1),
+                    "tp": t_tp, "fp": t_fp}
+    out["best_threshold"] = best
+
+    if tp + fp == 0 or tn + fn == 0:
+        out["WARNING"] = (
+            "argmax collapsed to a single class. With PrimeVul's 2.77% positive rate "
+            "this is the expected optimum of unweighted cross-entropy and is a "
+            "training artifact, NOT evidence about the benchmark. Check roc_auc and "
+            "best_threshold before drawing any conclusion."
+        )
+        print("\n*** " + out["WARNING"] + "\n")
+    print(f"ROC-AUC {out['roc_auc']:.4f}  PR-AUC {out['pr_auc']:.4f}  "
+          f"scores in [{out['score_min']:.4f}, {out['score_max']:.4f}]")
+    print(f"best-threshold bal.acc {best['bal_acc']:.4f} at {best['threshold']:.4f} "
+          f"(recall {best['recall']:.3f}, spec {best['specificity']:.3f})")
     (OUTDIR / "scores.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
     # Per-item scores give this baseline the threshold sweep the LLMs lack.
     with (OUTDIR / "per_item.jsonl").open("w", encoding="utf-8") as fh:
