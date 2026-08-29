@@ -1,0 +1,46 @@
+{
+  "model": "microsoft/codebert-base",
+  "trained_on": "primevul_train",
+  "n": 1549,
+  "tp": 389,
+  "fp": 179,
+  "fn": 160,
+  "tn": 821,
+  "bal_acc": 0.7647805100182149,
+  "mcc": 0.525646177668174,
+  "f1": 0.6965085049239034,
+  "accuracy": 0.7811491284699806,
+  "recall": 0.7085610200364298,
+  "specificity": 0.821,
+  "precision_at_1to44": 0.08227961489755975,
+  "precision_at_1to44_ci": [
+    0.06916867926157799,
+    0.09733897276154575
+  ],
+  "epochs": 3,
+  "seed": 12345,
+  "class_weighted": false,
+  "scored_from_checkpoint": "harness/runs/primevul_trained_baseline/ckpt/checkpoint-5494",
+  "threshold": 0.01600000075995922,
+  "threshold_source": "validation split",
+  "validation_bal_acc": 0.7587373862349307,
+  "n_validation_used": 6000,
+  "roc_auc": 0.8450382513661202,
+  "pr_auc": 0.7466692806545573,
+  "score_min": 0.0017649073852226138,
+  "score_max": 0.37203454971313477,
+  "oracle_best_threshold_TEST_SET_DO_NOT_REPORT_AS_RESULT": {
+    "threshold": 0.01140000019222498,
+    "bal_acc": 0.7774071038251367,
+    "recall": 0.7978142076502732,
+    "specificity": 0.757,
+    "tp": 438,
+    "fp": 243
+  },
+  "leakage": {
+    "overlap_by_id": 0,
+    "overlap_by_body": 0,
+    "n_eval": 1549
+  },
+  "_provenance": "Transcribed from the run output on the H200 pod, 2026-08-29. class_weighted is recorded as false: checkpoint-5494 comes from the FIRST training run, which used unweighted cross-entropy; the run that scored it passed --from-checkpoint, and the flag in that process described nothing. Epoch 1 was selected by load_best_model_at_end on eval_loss."
+}

@@ -1,0 +1,50 @@
+[
+  {
+    "concurrency": 1,
+    "n_tasks": 400,
+    "wall_s": 596.930070400238,
+    "gross_j": 342145.4399995804,
+    "active_j": 295954.99115201,
+    "gross_j_per_task": 855.3635999989509,
+    "active_j_per_task": 739.887477880025,
+    "throughput_tasks_per_s": 0.6700952420302807,
+    "idle_power_w": 77.38,
+    "run_dir": "harness/runs/llama_c1-20260829-114359"
+  },
+  {
+    "concurrency": 8,
+    "n_tasks": 400,
+    "wall_s": 109.17070245742798,
+    "gross_j": 68364.54400062561,
+    "active_j": 59916.91504446983,
+    "gross_j_per_task": 170.91136000156402,
+    "active_j_per_task": 149.79228761117457,
+    "throughput_tasks_per_s": 3.6639866832036123,
+    "idle_power_w": 77.38,
+    "run_dir": "harness/runs/llama_c8-20260829-115356"
+  },
+  {
+    "concurrency": 32,
+    "n_tasks": 400,
+    "wall_s": 61.1579384803772,
+    "gross_j": 40288.42499923706,
+    "active_j": 35556.023719625475,
+    "gross_j_per_task": 100.72106249809265,
+    "active_j_per_task": 88.8900592990637,
+    "throughput_tasks_per_s": 6.5404428262136705,
+    "idle_power_w": 77.38,
+    "run_dir": "harness/runs/llama_c32-20260829-115545"
+  },
+  {
+    "concurrency": 64,
+    "n_tasks": 400,
+    "wall_s": 50.28272533416748,
+    "gross_j": 33574.92899990082,
+    "active_j": 29684.05171354294,
+    "gross_j_per_task": 83.93732249975204,
+    "active_j_per_task": 74.21012928385736,
+    "throughput_tasks_per_s": 7.955018295879779,
+    "idle_power_w": 77.38,
+    "run_dir": "harness/runs/llama_c64-20260829-115646"
+  }
+]

@@ -559,7 +559,7 @@ Two extensions follow directly. The concurrency sweep showed the FLOP estimator 
 
 \informedconsent{Not applicable.}
 
-\dataavailability{The measurement harness, all run configurations, the exact sampled function identifiers, and the aggregated results are openly available in Zenodo at \url{https://doi.org/10.5281/zenodo.21391073}. The PrimeVul dataset is available from its original authors~\citep{primevul}.}
+\dataavailability{The measurement harness, all run configurations, the exact sampled function identifiers, the provider and price snapshot, the concurrency-sweep energy and throughput measurements, the static-analysis and trained-detector baseline scores, and the aggregated per-model results are openly available in Zenodo at \url{https://doi.org/10.5281/zenodo.21391073}. Two artifacts are omitted deliberately and are regenerable from the deposit: the fine-tuned detector's checkpoint, which is large and is reproduced by \texttt{harness/scripts/primevul\_trained\_baseline.py} at the recorded seed, and that detector's per-item scores, which the same script re-emits. The PrimeVul dataset is available from its original authors~\citep{primevul}; \texttt{harness/scripts/fetch\_primevul.py} retrieves the split we used and verifies it against the row and class counts reported here before installing it.}
 
 \conflictsofinterest{The authors declare no conflicts of interest. The funders had no role in the design of the study; in the collection, analyses, or interpretation of data; in the writing of the manuscript; or in the decision to publish the results.}
 

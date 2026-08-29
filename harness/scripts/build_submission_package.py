@@ -52,6 +52,17 @@ def _skip(p: Path) -> bool:
         or p.suffix in {".pyc", ".pyo"}
         # the PrimeVul corpus itself: redistributed by its authors, not by us
         or (p.match("harness/data/primevul/*"))
+        # Model checkpoints: hundreds of MB, and regenerated exactly by
+        # primevul_trained_baseline.py at the recorded seed. The per-model scores
+        # and per-item predictions they produced ARE included, which is what a
+        # reader needs to check the analysis without re-training.
+        or "ckpt" in parts
+        or any(part.startswith("checkpoint-") for part in p.parts)
+        # Serving logs from the GPU host: large, machine-specific, and of no
+        # value to a reader; the resolved stack is recorded in the appendix.
+        or p.name.startswith("vllm_")
+        # Scratch and preflight runs kept only for our own audit trail.
+        or any(part.endswith(("_preflight", "_preflight2", "_diag")) for part in p.parts)
     )
 
 

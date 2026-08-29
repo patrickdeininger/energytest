@@ -1,0 +1,50 @@
+[
+  {
+    "concurrency": 1,
+    "n_tasks": 400,
+    "wall_s": 132.10671019554138,
+    "gross_j": 43993.574999809265,
+    "active_j": 33771.15776487827,
+    "gross_j_per_task": 109.98393749952317,
+    "active_j_per_task": 84.42789441219567,
+    "throughput_tasks_per_s": 3.0278552800832674,
+    "idle_power_w": 77.38,
+    "run_dir": "harness/runs/gemma_c1-20260829-112638"
+  },
+  {
+    "concurrency": 8,
+    "n_tasks": 400,
+    "wall_s": 19.622288465499878,
+    "gross_j": 6382.203999519348,
+    "active_j": 4863.831318058968,
+    "gross_j_per_task": 15.95550999879837,
+    "active_j_per_task": 12.15957829514742,
+    "throughput_tasks_per_s": 20.38498214432452,
+    "idle_power_w": 77.38,
+    "run_dir": "harness/runs/gemma_c8-20260829-112850"
+  },
+  {
+    "concurrency": 32,
+    "n_tasks": 400,
+    "wall_s": 8.236328840255737,
+    "gross_j": 2676.5570001602173,
+    "active_j": 2039.2298745012283,
+    "gross_j_per_task": 6.691392500400543,
+    "active_j_per_task": 5.098074686253071,
+    "throughput_tasks_per_s": 48.56532658639939,
+    "idle_power_w": 77.38,
+    "run_dir": "harness/runs/gemma_c32-20260829-112909"
+  },
+  {
+    "concurrency": 64,
+    "n_tasks": 400,
+    "wall_s": 6.227988243103027,
+    "gross_j": 2006.998999595642,
+    "active_j": 1525.0772693443298,
+    "gross_j_per_task": 5.017497498989105,
+    "active_j_per_task": 3.8126931733608247,
+    "throughput_tasks_per_s": 64.22619702966946,
+    "idle_power_w": 77.38,
+    "run_dir": "harness/runs/gemma_c64-20260829-112918"
+  }
+]
