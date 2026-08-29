@@ -1,0 +1,38 @@
+# ROUND-2 FIX: DeepSeek-V3.2 reasoning, re-run on a provider that actually honours it.
+#
+# The r2_reasoning run pinned DeepSeek to GMICloud, which ACCEPTED
+# reasoning:{enabled:true} without error and silently ignored it: mean output was
+# 131 tokens against 1771 in the July epoch, and the responses carry no reasoning
+# trace. The gateway's own capability metadata lists GMICloud as reasoning-capable,
+# so neither the API nor the metadata surfaced the problem -- only the token count did.
+#
+# Probing one task across five providers (2026-08-29): GMICloud 158 output tokens,
+# StreamLake 3032, SiliconFlow 3390, AtlasCloud 4219, Novita 7487. StreamLake is
+# pinned here as the cheapest that honours the flag and the closest to GMICloud in
+# both price and precision (fp8), so the arm stays comparable to the direct run.
+run_name: r2_reasoning_deepseek_fix
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 6
+models:
+  - id: deepseek-v3.2-reasoning
+    backend: api
+    params: { provider: openrouter, model: deepseek/deepseek-v3.2, active_params_b: 37, provider_order: [StreamLake], reasoning: { enabled: true } }
+    price: { in: 0.214, out: 0.322 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 4096
+  max_code_chars: 8000
+  prompt_variant: v1
+output_dir: harness/runs
