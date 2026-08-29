@@ -36,17 +36,22 @@ comparable — do not mix a Path A Gemma measurement with the old Path B Qwen/Ll
 
 ## 1. Get the code onto the pod
 
-The pod needs the **current working tree**, not `origin/main`. The round-2 work (provider
-pinning, retry/backoff, prompt variants, the concurrency override, and the G1/G3 scripts) is
-uncommitted, and `origin/main` is still at `22fc67f`.
+The round-2 work (provider pinning, retry/backoff, prompt variants, the concurrency override,
+and the G1/G3 scripts) lives on the **`revision/mdpi-round-1`** branch. `main` is still at
+`22fc67f` and does **not** have it, so a plain `git clone` will give you stale code and the
+sweep scripts will be missing.
 
-**Option A — commit and push (recommended), then on the pod:**
+**Option A — clone the branch (recommended):**
 
 ```bash
 cd /workspace
-git clone https://github.com/patrickdeininger/energytest.git
+git clone -b revision/mdpi-round-1 https://github.com/patrickdeininger/energytest.git
 cd energytest
+git log --oneline -1     # expect: docs: MDPI round-1 reviews, revision plan, ...
 ```
+
+(If the branch has since been merged, a plain clone of `main` is equivalent — check that
+`harness/scripts/concurrency_sweep.py` exists before relying on it.)
 
 **Option B — copy the working tree directly from Windows** (no commit needed). From Git Bash
 on your machine, using the SSH details RunPod shows for the pod:
