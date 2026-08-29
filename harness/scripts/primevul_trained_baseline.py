@@ -122,6 +122,13 @@ def main() -> int:
     ap.add_argument("--no-class-weight", action="store_true",
                     help="disable inverse-frequency class weighting (reproduces the "
                          "collapse-to-majority failure; kept only for the record)")
+    ap.add_argument("--from-checkpoint", default=None,
+                    help="skip training and score with an existing checkpoint, e.g. "
+                         "harness/runs/primevul_trained_baseline/ckpt/checkpoint-XXXX")
+    ap.add_argument("--valid-subsample", type=int, default=6000,
+                    help="validation rows used for threshold selection (the full "
+                         "split is 23,948; a subsample keeps the pass short and the "
+                         "threshold estimate is already stable at a few thousand)")
     args = ap.parse_args()
 
     OUTDIR.mkdir(parents=True, exist_ok=True)
@@ -206,11 +213,43 @@ def main() -> int:
     )
     trainer = TrainerCls(model=model, args=targs,
                          train_dataset=DS(train_rows), eval_dataset=DS(valid_rows))
-    trainer.train()
+    if args.from_checkpoint:
+        print(f"loading checkpoint {args.from_checkpoint} (skipping training)")
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.from_checkpoint, num_labels=2)
+        trainer.model = model.to(trainer.args.device)
+    else:
+        trainer.train()
 
-    logits = trainer.predict(DS(eval_rows)).predictions
-    probs = torch.softmax(torch.tensor(logits), dim=-1)[:, 1].numpy()
-    preds = (probs >= 0.5).astype(int)
+    def score(rows):
+        lg = trainer.predict(DS(rows)).predictions
+        return torch.softmax(torch.tensor(lg), dim=-1)[:, 1].numpy()
+
+    # Select the decision threshold on VALIDATION, never on the evaluation set.
+    # Sweeping the threshold on test and reporting the best value is an oracle
+    # result: it reports the best a threshold could have done, not what this
+    # detector achieves. On our first run that difference is the whole finding,
+    # since the model's scores never exceed 0.372 and argmax collapses.
+    import random as _random
+
+    vrows = valid_rows
+    if args.valid_subsample and len(vrows) > args.valid_subsample:
+        vrows = _random.Random(args.seed).sample(vrows, args.valid_subsample)
+    print(f"selecting threshold on {len(vrows)} validation rows ...")
+    vprobs = score(vrows)
+    vys = np.array([int(r["target"]) for r in vrows])
+    tuned, tuned_ba = 0.5, -1.0
+    for thr in np.unique(np.round(vprobs, 4)):
+        p = (vprobs >= thr).astype(int)
+        v_tp = int(((p == 1) & (vys == 1)).sum()); v_fp = int(((p == 1) & (vys == 0)).sum())
+        v_fn = int(((p == 0) & (vys == 1)).sum()); v_tn = int(((p == 0) & (vys == 0)).sum())
+        ba = balanced_accuracy(v_tp, v_fp, v_fn, v_tn)
+        if ba > tuned_ba:
+            tuned, tuned_ba = float(thr), ba
+    print(f"  validation-selected threshold {tuned:.4f} (validation bal.acc {tuned_ba:.4f})")
+
+    probs = score(eval_rows)
+    preds = (probs >= tuned).astype(int)
     ys = np.array([int(r["target"]) for r in eval_rows])
 
     tp = int(((preds == 1) & (ys == 1)).sum()); fp = int(((preds == 1) & (ys == 0)).sum())
@@ -229,7 +268,10 @@ def main() -> int:
         "precision_at_1to44_ci": [precision_at_prevalence(tl, 1 - fh, PREVALENCE),
                                   precision_at_prevalence(th, 1 - fl, PREVALENCE)],
         "epochs": args.epochs, "seed": args.seed,
-        "class_weighted": not args.no_class_weight, "leakage": leak,
+        "class_weighted": not args.no_class_weight,
+        "threshold": tuned, "threshold_source": "validation split",
+        "validation_bal_acc": tuned_ba, "n_validation_used": len(vrows),
+        "leakage": leak,
     }
 
     # A collapsed argmax (predicting one class everywhere) can still hide a usable
@@ -242,6 +284,8 @@ def main() -> int:
     out["pr_auc"] = float(average_precision(list(ys), list(probs)))
     out["score_min"], out["score_max"] = float(probs.min()), float(probs.max())
 
+    # Reported for reference ONLY, and labelled as an oracle: this is the best a
+    # threshold could have done had we been allowed to peek at the evaluation set.
     best = None
     for thr in np.unique(np.round(probs, 4)):
         p = (probs >= thr).astype(int)
@@ -253,7 +297,7 @@ def main() -> int:
                     "recall": t_tp / max(t_tp + t_fn, 1),
                     "specificity": t_tn / max(t_tn + t_fp, 1),
                     "tp": t_tp, "fp": t_fp}
-    out["best_threshold"] = best
+    out["oracle_best_threshold_TEST_SET_DO_NOT_REPORT_AS_RESULT"] = best
 
     if tp + fp == 0 or tn + fn == 0:
         out["WARNING"] = (
@@ -265,8 +309,11 @@ def main() -> int:
         print("\n*** " + out["WARNING"] + "\n")
     print(f"ROC-AUC {out['roc_auc']:.4f}  PR-AUC {out['pr_auc']:.4f}  "
           f"scores in [{out['score_min']:.4f}, {out['score_max']:.4f}]")
-    print(f"best-threshold bal.acc {best['bal_acc']:.4f} at {best['threshold']:.4f} "
-          f"(recall {best['recall']:.3f}, spec {best['specificity']:.3f})")
+    print(f"\nREPORTABLE (threshold {tuned:.4f} chosen on validation):")
+    print(f"   bal.acc {out['bal_acc']:.4f}  recall {rec:.3f}  spec {spec:.3f}  "
+          f"prec@1:44 {out['precision_at_1to44']*100:.2f}%")
+    print(f"oracle (threshold swept on the EVALUATION set -- not a result): "
+          f"bal.acc {best['bal_acc']:.4f} at {best['threshold']:.4f}")
     (OUTDIR / "scores.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
     # Per-item scores give this baseline the threshold sweep the LLMs lack.
     with (OUTDIR / "per_item.jsonl").open("w", encoding="utf-8") as fh:
