@@ -466,7 +466,46 @@ The main result rests on one prompt template, one stratified draw of the safe po
 
 \emph{Run-to-run variation.} Because the positives are identical across those draws, re-running them yields repeated generations of the same 549 items under an unchanged configuration, which bounds API-side non-determinism at temperature~0 at no additional cost.
 
-\emph{[Results pending completion of the robustness runs; the analysis is scripted and the runs are in progress.]}
+The three sources of variation turn out to differ by an order of magnitude, and in an order we did not anticipate (Table~\ref{tab:robustness}).
+
+\subsubsection*{The sample draw does not matter}
+Across three near-disjoint draws of the safe pool, the rank ordering of the eight models is \emph{identical} --- Spearman correlation 1.000 against the anchor for both redraws --- and no model's balanced accuracy moves by more than 0.015. This is the reassuring result, and it is what the paired bootstrap of Section~\ref{sec:quality} predicted: resampling the negatives estimates the same quantity that drawing new ones does, and the two agree. Reviewers 2 and 3 were right to ask, and the answer is that a single stratified draw was adequate.
+
+\subsubsection*{Repeated generation matters slightly}
+Because all 549 vulnerable functions appear in every draw, re-running them measures generation variance directly, at temperature~0 with an unchanged configuration. It is not zero. Per-item verdict agreement between the anchor and a redraw ranges from 88.3\% (Qwen3-Coder-30B) to 100\% (Gemma-3-4B), so between one and twelve verdicts in a hundred flip on a repeat call that should be deterministic. The aggregate effect is small --- recall moves by at most 0.036, and usually under 0.011 --- but the figure is worth recording, because ``temperature 0'' is routinely treated as a guarantee of reproducibility in this literature and for API-served models it is not one. Only Gemma-3-4B was exactly reproducible.
+
+\subsubsection*{The prompt matters a great deal, and changes the answer}
+Paraphrasing the prompt moves results by up to $0.088$ balanced accuracy, five to six times the draw effect, and it reorders the top of the table. Under the anchor phrasing DeepSeek-V3.2 leads at 0.711; removing the expert persona puts Claude-Sonnet-5 first at 0.741 while DeepSeek falls to 0.638; reversing the order in which the two answers are offered puts GLM-5 first at 0.700. \textbf{Three reasonable phrasings of the same question produce three different winners.} The rank correlation with the anchor is 0.381 for the persona change and 0.810 for the option-order change, and six of eight per-model shifts are individually significant under a paired bootstrap.
+
+Averaging over the three prompts tells a different story from any one of them: Claude-Sonnet-5 (0.689) and GLM-5 (0.688) are level at the top, with DeepSeek-V3.2 third at 0.668. The models also differ markedly in how \emph{stable} they are, which a single-prompt evaluation cannot see at all: GLM-5 varies by 0.031 across the three phrasings and GPT-5.1 by 0.018, while Claude-Sonnet-5 varies by 0.088 and DeepSeek-V3.2 by 0.072. For a deployer, low sensitivity to phrasing is a real virtue, and on that criterion GLM-5 is the strongest model in our roster despite never being the single best under any one prompt.
+
+This is the sharpest limitation on the quality claims in this paper, and it applies to the literature as well as to us. No single-prompt ranking of LLMs on this task should be read as a property of the models; it is a property of the pair (model, prompt). We report the anchor prompt's results throughout because that is what the cost and energy measurements were collected under, but Section~\ref{sec:quality}'s ordering should be read with the range in Table~\ref{tab:robustness} attached. The efficiency conclusions are untouched: cost and energy per task depend on token counts, not on phrasing, and the ordering there is identical under all three prompts.
+
+\begin{table}[H]
+\caption{Robustness of balanced accuracy to the three design choices the headline table fixes. \textbf{Draws} are three near-disjoint samples of the 1000 safe functions (the 549 vulnerable functions are exhaustive and appear in all three). \textbf{Prompts} are the anchor and two paraphrases, each altering exactly one property. \textbf{Range} is max minus min across the three prompts. \textbf{Agree} is per-item verdict agreement on the identical positive set between anchor and redraw, i.e.\ generation reproducibility at temperature~0. Gemini-3.1-Pro is scored on the tasks it answered (see Section~\ref{sec:families}).\label{tab:robustness}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{lCCCCCCC}
+\toprule
+& \multicolumn{3}{c}{\textbf{Prompt}} & & \multicolumn{2}{c}{\textbf{Safe-pool draw}} & \\
+\cmidrule(lr){2-4}\cmidrule(lr){6-7}
+\textbf{Model} & \textbf{v1} & \textbf{v2} & \textbf{v3} & \textbf{Range} & \textbf{draw 2} & \textbf{draw 3} & \textbf{Agree}\\
+\midrule
+Claude-Sonnet-5 & 0.653 & \textbf{0.741} & 0.675 & 0.088 & 0.642 & 0.642 & 0.976\\
+GLM-5 & 0.669 & 0.697 & \textbf{0.700} & \textbf{0.031} & 0.679 & 0.663 & 0.995\\
+DeepSeek-V3.2 & \textbf{0.711} & 0.638 & 0.654 & 0.072 & 0.710 & 0.706 & 0.965\\
+Gemma-3-4B & 0.653 & 0.605 & 0.671 & 0.066 & 0.657 & 0.644 & \textbf{1.000}\\
+Gemini-3.1-Pro & 0.606 & 0.661 & 0.600 & 0.061 & 0.591 & 0.594 & 0.951\\
+GPT-5.1 & 0.615 & 0.626 & 0.609 & \textbf{0.018} & 0.626 & 0.613 & 0.927\\
+Llama-3.3-70B & 0.609 & 0.632 & 0.570 & 0.062 & 0.598 & 0.595 & 0.989\\
+Qwen3-Coder-30B & 0.568 & 0.542 & 0.557 & 0.026 & 0.573 & 0.568 & 0.883\\
+\midrule
+\textit{Spearman $\rho$ vs anchor} & \textit{--} & \textit{0.381} & \textit{0.810} & & \textit{1.000} & \textit{1.000} & \\
+\textit{Largest shift} & \textit{--} & \textit{0.088} & \textit{0.057} & & \textit{0.015} & \textit{0.015} & \\
+\bottomrule
+\end{tabularx}
+\end{adjustwidth}
+\end{table}
 
 \subsection{Reasoning versus Direct Answering}\label{sec:reasoning}
 Our main comparison uses direct-answer mode so that all models are judged at a comparable single-shot budget. Because reasoning is the frontier models' native mode, we test its effect at full scale. We re-run all three frontier models with reasoning enabled on the full N=1549, and pair Claude-Sonnet-5 and GPT-5.1 against their direct-mode predictions. Reasoning raises balanced accuracy by $+0.030$ (Claude, from 0.616 to 0.646, paired bootstrap $p=0.013$) and $+0.043$ (GPT-5.1, from 0.617 to 0.660, $p=0.002$), and both gains are significant. Gemini-3.1-Pro, which has no direct mode and was capped at 256 output tokens in the main run, rises to 0.677 given a 4096-token budget, up from 0.623, which shows its main-run score was budget-limited. These gains come at roughly $18\times$ the generated tokens (mean 1137 against the 64-token direct budget) and several times higher cost per task (Claude-Sonnet-5 $2.5\times$, Gemini-3.1-Pro $4.4\times$, GPT-5.1 $7.6\times$).
