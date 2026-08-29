@@ -421,7 +421,39 @@ Gemini-3.1-Pro & 0.606 & 0.647 & \textbf{$+0.061$} & \textbf{$<10^{-4}$} & \text
 \end{adjustwidth}
 \end{table}
 
-\emph{[The Family A--C comparison table is pending the remaining configuration runs; the analysis is scripted and the runs are in progress.]}
+\subsubsection*{Family A: the strict like-for-like comparison}
+Table~\ref{tab:familyA} reports every model at a 64-token budget with reasoning disabled where permitted, run in a single measurement epoch with providers pinned. This is the comparison the reviewers asked for, and it is a cleaner instrument than Table~\ref{tab:results}: one epoch, one budget, one prompt, one provider per model.
+
+The open-weight lead survives it, and strengthens. DeepSeek-V3.2 (0.711) significantly exceeds all three frontier models, by $+0.058$ against Claude-Sonnet-5 to $+0.118$ against Gemini-3.1-Pro, every gap significant below the bootstrap's resolution after Holm correction over the nine-comparison family. GLM-5 and Gemma-3-4B each significantly beat GPT-5.1 and Gemini-3.1-Pro. The three highest-scoring models remain open-weight.
+
+But the margin against the best frontier model is now essentially nil, and that is the honest refinement of the submitted claim. Claude-Sonnet-5 reaches 0.653 under budget matching, level with Gemma-3-4B to three decimal places ($+0.0003$, $p=0.98$) and not significantly below GLM-5 ($+0.016$, $p=0.30$). On MCC it actually places third, above Gemma. So in the strictest comparison the picture is: one open model clearly ahead of the field, one frontier model level with the next two open models, and everything else below. That is a narrower claim than ``the three highest-scoring models are all open-weight'' implies on its own, and we prefer to state both.
+
+The efficiency ordering is untouched by any of this. Gemma-3-4B matches Claude-Sonnet-5's quality at 1/66 of the cost per task; DeepSeek-V3.2 beats it outright at 1/18. Note also that the comparison against Gemini-3.1-Pro is necessarily restricted to the 54.2\% of tasks on which it emitted a verdict at all, and that subset is self-selected rather than random, so its 0.606 should be read as the score it achieved on the questions it chose to answer.
+
+\begin{table}[H]
+\caption{\textbf{Family A}, budget-matched direct answering: every model at a 64-token output budget with reasoning disabled where the provider permits it, one epoch, providers pinned. \textbf{Parse} is the fraction of tasks yielding a verdict. \textbf{Prec.}\ is precision at the natural 1:44 prevalence. Gemini-3.1-Pro cannot be budget-matched: it rejects any request to disable reasoning and spends a 64-token budget on internal reasoning, so its row is computed on the 54.2\% of tasks it answered and is not comparable with the rest.\label{tab:familyA}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{lcCCCCCCC}
+\toprule
+\textbf{Model} & \textbf{Tier} & \textbf{Parse} & \textbf{Bal.\ acc.} & \textbf{MCC} & \textbf{Recall} & \textbf{Spec.} & \textbf{Prec.\ (\%)} & \textbf{USD/task}\\
+\midrule
+DeepSeek-V3.2 & open & 0.999 & \textbf{0.711} & \textbf{0.403} & 0.791 & 0.631 & \textbf{4.62} & 0.00015\\
+GLM-5 & open & 1.000 & 0.669 & 0.352 & 0.918 & 0.419 & 3.46 & 0.00048\\
+Gemma-3-4B & open & 1.000 & 0.653 & 0.297 & 0.785 & 0.521 & 3.58 & \textbf{0.00004}\\
+Claude-Sonnet-5 & frontier & 1.000 & 0.653 & 0.321 & 0.903 & 0.402 & 3.31 & 0.00265\\
+GPT-5.1 & frontier & 1.000 & 0.615 & 0.225 & 0.758 & 0.472 & 3.15 & 0.00139\\
+Llama-3.3-70B & open & 1.000 & 0.609 & 0.267 & \textbf{0.951} & 0.268 & 2.86 & 0.00008\\
+Qwen3-Coder-30B & open & 1.000 & 0.568 & 0.136 & 0.441 & \textbf{0.695} & 3.17 & 0.00006\\
+\midrule
+\textit{Gemini-3.1-Pro} & \textit{frontier} & \textit{0.542} & \textit{0.606} & \textit{0.252} & \textit{0.933} & \textit{0.278} & \textit{2.84} & \textit{0.00219}\\
+\bottomrule
+\end{tabularx}
+\end{adjustwidth}
+\end{table}
+
+\subsubsection*{Families B and C}
+Family B (native configuration) and Family C (best observed) are reported in Section~\ref{sec:reasoning}, where the frontier models are given their reasoning mode and the two open models with reasoning modes are given theirs. We deliberately do not merge those results into Table~\ref{tab:familyA}. The reasoning runs belong to an earlier measurement epoch, and re-running the anchor configuration seven weeks later moved several models by $+0.03$ to $+0.06$ balanced accuracy --- a drift we could not attribute to provider or precision, since a three-provider control on identical weights showed effects below $0.01$ (Section~\ref{sec:limits}). Placing a July reasoning score beside an August direct score in one table would silently attribute that drift to the configuration. Each family is therefore internally consistent, and cross-family comparisons are made only within an epoch.
 
 \subsection{Robustness: Prompt, Sample, and Run-to-Run Variation}\label{sec:robustness}
 The main result rests on one prompt template, one stratified draw of the safe pool, and one generation per item. Each is a design choice that could be carrying the conclusion, and the paired bootstrap of Section~\ref{sec:quality} bounds none of them --- it resamples within the sample we drew. We therefore vary all three directly.
