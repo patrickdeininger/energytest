@@ -316,7 +316,34 @@ The models in Table~\ref{tab:results} are not run in identical configurations, a
 
 One model cannot enter Family A. Gemini-3.1-Pro rejects any request to disable reasoning (\texttt{HTTP 400}, Appendix~\ref{app:repro}), and at a 64-token budget it spends the entire allowance on internal reasoning and emits no verdict on 45.8\% of tasks. We report that parse rate as the finding it is --- the model cannot be budget-matched --- rather than scoring it against a set it could not answer. Claude-Sonnet-5, by contrast, now parses all 1549 tasks at 64 tokens, where in our earlier measurement epoch it required 256; we therefore include it in Family A on its own terms.
 
-\emph{[Results for Families A--C, the budget-sensitivity contrast between 64 and 256 output tokens, and the accompanying table are pending completion of the configuration-matched runs; the analysis is scripted and the runs are in progress.]}
+\subsubsection*{The output budget does not drive the results}
+We first isolate the confound the reviewers flagged most often. Every model was run at both a 64- and a 256-token output budget with the prompt, seed, sample, and pinned provider held fixed, so the only difference is how much room the model had to answer (Table~\ref{tab:budget}). For seven of the eight models the effect is negligible: balanced accuracy moves by at most 0.004 in either direction, and no change is significant under a paired bootstrap ($p\geq0.34$). Output length does grow, from the 64-token cap to 98--250 tokens, and cost rises correspondingly by 1.1 to 2.0 times, but the verdicts barely move. This is the expected result given that the prompt asks for the verdict first, and it means the budget asymmetry in Table~\ref{tab:results} is not carrying the quality comparison.
+
+Gemini-3.1-Pro is the single exception, and its exception is instructive. It gains $+0.061$ balanced accuracy at the larger budget ($p<10^{-4}$), but its parse rate over the same change goes from 0.542 to 0.991. The gain is therefore a \emph{parsing} effect rather than a reasoning-quality one: at 64 tokens the model spends its entire allowance on internal reasoning and never emits a verdict on 45.8\% of tasks, and what improves at 256 tokens is mostly its ability to answer at all. This is the concrete form of ``cannot be budget-matched'', and it is why we report Gemini's failure rate rather than scoring it against a set it could not answer.
+
+\begin{table}[H]
+\caption{Output-budget sensitivity: identical models, prompt, seed, sample and pinned provider at 64 versus 256 output tokens. $\Delta$ is the paired balanced-accuracy change (256 minus 64) on the common parsed set, with a 20{,}000-resample bootstrap $p$. \textbf{Parse} is the parse rate at each budget. Seven of eight models are unaffected; Gemini-3.1-Pro's gain tracks its parse rate, not its reasoning.\label{tab:budget}}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{lCCCCCCC}
+\toprule
+\textbf{Model} & \textbf{Bal.\ acc.\ @64} & \textbf{Bal.\ acc.\ @256} & \textbf{$\Delta$} & \textbf{$p$} & \textbf{Parse @64} & \textbf{Parse @256} & \textbf{Cost ratio}\\
+\midrule
+DeepSeek-V3.2 & 0.711 & 0.714 & $+0.004$ & 0.48 & 0.999 & 1.000 & 1.07$\times$\\
+GLM-5 & 0.669 & 0.671 & $+0.003$ & 0.34 & 1.000 & 1.000 & 1.24$\times$\\
+Claude-Sonnet-5 & 0.653 & 0.657 & $+0.004$ & 0.46 & 1.000 & 1.000 & 1.65$\times$\\
+Gemma-3-4B & 0.653 & 0.651 & $-0.002$ & 0.50 & 1.000 & 1.000 & 1.27$\times$\\
+GPT-5.1 & 0.615 & 0.613 & $-0.002$ & 0.76 & 1.000 & 1.000 & 1.63$\times$\\
+Llama-3.3-70B & 0.609 & 0.611 & $+0.002$ & 0.61 & 1.000 & 1.000 & 1.39$\times$\\
+Qwen3-Coder-30B & 0.568 & 0.564 & $-0.004$ & 0.63 & 1.000 & 1.000 & 1.19$\times$\\
+\midrule
+Gemini-3.1-Pro & 0.606 & 0.647 & \textbf{$+0.061$} & \textbf{$<10^{-4}$} & \textbf{0.542} & 0.991 & 2.04$\times$\\
+\bottomrule
+\end{tabularx}
+\end{adjustwidth}
+\end{table}
+
+\emph{[The Family A--C comparison table is pending the remaining configuration runs; the analysis is scripted and the runs are in progress.]}
 
 \subsection{Robustness: Prompt, Sample, and Run-to-Run Variation}\label{sec:robustness}
 The main result rests on one prompt template, one stratified draw of the safe pool, and one generation per item. Each is a design choice that could be carrying the conclusion, and the paired bootstrap of Section~\ref{sec:quality} bounds none of them --- it resamples within the sample we drew. We therefore vary all three directly.

@@ -143,7 +143,7 @@ def main() -> int:
         lines = [
             r"\begin{tabular}{llrrrr}", r"\toprule",
             r"\textbf{Model A} & \textbf{Model B} & \textbf{$n$} & "
-            r"$\bm{\Delta}$ \textbf{bal.\ acc.} & \textbf{95\% CI} & "
+            r"\textbf{$\Delta$ bal.\ acc.} & \textbf{95\% CI} & "
             r"\textbf{Holm $p$}\\", r"\midrule",
         ]
         for r in sorted(primary, key=lambda x: x["p_holm"]):
