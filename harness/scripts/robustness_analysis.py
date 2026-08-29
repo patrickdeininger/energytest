@@ -139,6 +139,29 @@ def main() -> int:
             worst = max(abs(v - base[m]) for m, v in vals)
             print(f"   -> Spearman rank correlation with the anchor: {rho:.3f}; "
                   f"largest absolute shift {worst:.4f}")
+
+        # For a redraw, the 549 positives are identical to the anchor's by
+        # construction (they are the whole positive population). Re-running them
+        # therefore measures generation non-determinism at temperature 0 under an
+        # unchanged configuration -- a different quantity from the draw effect, and
+        # free, so it is reported separately rather than folded in.
+        if "draw" in label:
+            print(f"   run-to-run on the {'':s}identical positive set "
+                  f"(temperature 0, unchanged configuration):")
+            for m in models:
+                if m not in var:
+                    continue
+                pos = [t for t in anchor[m]
+                       if t in var[m] and anchor[m][t]["label"] == 1
+                       and anchor[m][t].get("parsed_ok") and var[m][t].get("parsed_ok")]
+                if len(pos) < 100:
+                    continue
+                same = sum(1 for t in pos
+                           if anchor[m][t]["prediction"] == var[m][t]["prediction"])
+                ra = sum(anchor[m][t]["prediction"] for t in pos) / len(pos)
+                rv = sum(var[m][t]["prediction"] for t in pos) / len(pos)
+                print(f"      {m:20s} agree {same}/{len(pos)} = {same/len(pos):.3f}   "
+                      f"recall {ra:.3f} -> {rv:.3f} ({rv-ra:+.3f})")
     return 0
 
 
