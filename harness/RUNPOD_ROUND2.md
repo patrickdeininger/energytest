@@ -138,6 +138,8 @@ Run smallest first — if something is wrong with the setup, you find out in 8 m
 than after a 70 GB download.
 
 ```bash
+export IDLE_W=77.38        # the bare idle watts setup_gpu.sh printed on THIS pod
+
 # G1a: Qwen3-Coder-30B  (~13 min + ~60 GB download)
 bash harness/scripts/run_concurrency_sweep.sh Qwen/Qwen3-Coder-30B-A3B-Instruct \
      harness/configs/sweep_qwen.yaml qwen
@@ -146,6 +148,29 @@ bash harness/scripts/run_concurrency_sweep.sh Qwen/Qwen3-Coder-30B-A3B-Instruct 
 bash harness/scripts/run_concurrency_sweep.sh RedHatAI/Llama-3.3-70B-Instruct-FP8-dynamic \
      harness/configs/sweep_llama.yaml llama
 ```
+
+**Set `IDLE_W`.** Without it the sweep measures idle draw itself, but it can only do that once
+vLLM is already up, which subtracts *model-resident* idle — a higher baseline than the
+published runs subtracted, making the concurrency-1 point non-comparable to the very number
+it is meant to validate. The script warns if you forget.
+
+**Check `compressed-tensors` before the Llama run.** The FP8 checkpoint is a
+compressed-tensors format, and `pip uninstall vllm torch` leaves that package behind at
+whatever version the bare `pip install vllm` pulled — which was built for a newer torch:
+
+```bash
+python -c "import compressed_tensors as c, torch; print('ct', c.__version__, '| torch', torch.__version__)"
+```
+
+If it raises, install the version vLLM actually asks for rather than guessing:
+
+```bash
+python -c "import importlib.metadata as m; print([r for r in m.requires('vllm') if 'compressed' in r.lower()])"
+pip install -q "compressed-tensors==<the version printed>"
+```
+
+Qwen is `bf16` and never loads compressed-tensors, so G1a is unaffected either way — which is
+another reason to run it first.
 
 FP8 is **required** for Llama on a single H200: `bf16` is 140 GB and leaves no room for KV
 cache on a 141 GB card.
