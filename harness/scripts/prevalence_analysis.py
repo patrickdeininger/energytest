@@ -58,7 +58,18 @@ def load_rows(run_dir: Path):
 
 def rates(rows):
     """TPR/FPR over parsed predictions only; parse failures are excluded, never
-    silently counted as 'safe' (which would inflate specificity)."""
+    silently counted as 'safe' (which would inflate specificity).
+
+    Guards against reading an in-flight run. The runner emits every negative
+    before any positive, so a partial results.jsonl has no positives at all and
+    yields recall 0.000 and a meaningless balanced accuracy -- a number that looks
+    like a catastrophic model failure rather than an incomplete file."""
+    if not any(r["label"] == 1 for r in rows) or not any(r["label"] == 0 for r in rows):
+        raise ValueError(
+            f"run contains only one class ({len(rows)} rows) -- it is still in "
+            "flight. Metrics from a partial run are not interpretable because the "
+            "runner writes all negatives before any positive."
+        )
     parsed = [r for r in rows if r.get("parsed_ok")]
     tp = sum(1 for r in parsed if r["label"] == 1 and r["prediction"] == 1)
     fn = sum(1 for r in parsed if r["label"] == 1 and r["prediction"] == 0)
