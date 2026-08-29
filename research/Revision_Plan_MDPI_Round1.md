@@ -324,62 +324,58 @@ Response to Reviewers — Round 1
 
 ## 9. Progress log — 2026-08-29
 
-### Done (manuscript compiles clean: exit 0, 0 LaTeX warnings, 0 undefined refs, 24 pp)
+Manuscript **30 pp**, compiles clean: exit 0, **0 LaTeX warnings**, 0 undefined refs,
+2 overfull boxes (none >25pt). Harness **129 tests** (was 82). Branch
+`revision/mdpi-round-1`, all work pushed.
+
+### All twelve issues addressed
 
 | Issue | Status |
 |---|---|
-| **C1** reframing | **Done.** Abstract rewritten (196 w, under MDPI's 200 limit); Intro contribution 2 splits the efficiency claim from the quality claim; §5.1 opening; Conclusions restructured into three labelled parts. Title kept per §0. |
-| **C3** energy provenance | **Done.** Table 4 gains an `Energy src.` column and prints frontier sensitivity ranges inline; Figure 2 regenerated with measured/estimated marker encoding and uncertainty bars; **new Figure 3** sweeps the active-parameter assumption. Script: `harness/scripts/energy_figures.py`. |
-| **C4** price ≠ cost | **Done** (analysis half). New §3.3 + Table 3 from a live provider snapshot: open weights span **4.2–14.4×** in list price at one instant and differ in numerics (FP4 → `bf16`). Script: `harness/scripts/price_snapshot.py`. The break-even model still needs G1 throughput. |
-| **C5** baselines | **Done** except the fine-tune. Semgrep + Cppcheck run with swept thresholds → new §4.4 + Table 6. CodeQL inapplicability documented. G3 fully de-risked: mirror verified byte-identical, **zero leakage** (0/1549 by id and by normalized body). |
-| **C7** prevalence | **Done.** New §4.3 + Table 5: precision, FP/TP, alerts per 1000, cost and energy per true positive, prevalence sweep. Elevated into abstract, Intro and Conclusions. |
-| **C8** statistics | **Done.** New Appendix A + Table A1; `harness/scripts/pairwise_stats.py` emits all three families. |
-| **C9** reproducibility | **Done.** New Appendix B: prompts, 6-rule parser precedence, Table A2 (versions/providers/precision), decoding, retry policy. |
-| **C10** related work | **Done.** §2.3 rewritten; "first" replaced by a scoped claim + **Table 1**; added Lira et al. (arXiv:2604.08417 — verified: reports cost but not energy, four proprietary models, no open roster). |
-| **C11** presentation | **Done.** Provenance column; latency Table A3. |
-| **C12** English | **Done** (light). Sentences over 50 words reduced 4 → 2. |
+| **C1** reframing | Abstract rewritten (199 w), contribution bullets, §5.1, Conclusions restructured. Title kept, justified in the letter. |
+| **C2** config matching | **§4.7**: Family A (all 8 @ 64 tok, one epoch, pinned) + budget sensitivity. 7 of 8 models move ≤0.004 between 64 and 256 tokens, none significant. Gemini cannot comply (HTTP 400; 45.8% no-verdict). |
+| **C3** energy provenance | Table 4 provenance column + inline ranges, Fig. 2 re-encoded, **new Fig. 3**, and **§4.6 concurrency sweep**. |
+| **C4** price ≠ cost | **§3.3 + Table 3** (4.2–14.4× provider spread), provider pinning, **§5.1 + Table 8** break-even from measured throughput. |
+| **C5** baselines | **§4.4**: Semgrep, Cppcheck, and a **PrimeVul-fine-tuned detector that beats every LLM**. CodeQL inapplicability documented. |
+| **C6** robustness | **§4.8**: 2 prompt paraphrases, 3 safe-pool draws, repeated generations. Runs partly still executing. |
+| **C7** prevalence | **§4.3 + Table 5**, elevated into abstract and conclusions. |
+| **C8** statistics | **Appendix A + Table A1**, all three families. |
+| **C9** reproducibility | **Appendix B**: prompts, parser precedence, versions/providers/precision, retry policy. |
+| **C10** related work | §2.3 rewritten, **Table 1**, Lira et al. added (verified). |
+| **C11** presentation | Provenance column, latency Table A3. |
+| **C12** English | Sentences >50 words: 4 → 2. |
 
-**Harness changes** (117 tests pass, was 82): prompt variants v1/v2/v3/conf, with v1 verified
-byte-identical to July (all 1549 prompt hashes match); confidence parsing; **provider pinning**
-with fallbacks disabled; **retry/backoff** — there was none, so transient 429s were being scored
-as model failures; `attempts` and `provider` logged per row; concurrency override for the sweep.
+### The five findings we did not expect
 
-**Corrections to the submitted paper, found while doing this:**
-1. §4.2 reported Holm *p* = 7×10⁻⁴ for DeepSeek vs Gemini. Two independent scripts agree that no
-   resample of 20,000 crosses zero → corrected to a bound (adjusted *p* < 5×10⁻⁴).
-2. Flawfinder's precision was reported at a single threshold (6%). Swept, it reaches **13.4%** —
-   which makes our own LLM results look worse, and is now reported.
-3. "the strongest tools available here" removed per R2#5.
+1. **The fine-tuned detector beats every LLM.** 0.765 bal.acc / MCC 0.526 / 8.2% precision
+   vs the best LLM's 0.711 / 0.403 / 3.8%, from 125M parameters. Threshold chosen on
+   *validation* (oracle would have been 0.777). Zero leakage verified.
+2. **A *p*-value in §4.2 was wrong** — 7×10⁻⁴ should be a bound below the bootstrap's resolution.
+3. **Flawfinder's precision was quoted at one threshold** — 13.4% swept, not 6%.
+4. **The FLOP estimator describes single-request, not batched, serving** — 5.4–16.9× above
+   the c=64 measurement, so absolute energy and carbon figures are ~an order of magnitude high.
+   Architecture-dependent, which flips the Gemma/Qwen ranking between regimes.
+5. **Our provider hypothesis was refuted.** Three-provider control on identical Llama weights:
+   numerics −0.003 (p=0.57), operator +0.007 (p=0.17), 96–97% agreement. The July→August
+   shifts are model-service drift, not serving-layer dependence.
 
-### In flight
+Also: the concurrency-1 measurements **replicate** (Llama 1.00×, Qwen 0.95×), retiring the
+`"source": "pasted"` reproducibility gap.
 
-**API batch** (`harness/scripts/run_round2_batch.sh`, ≈$88 of the $133 budget) — 7 runs, sequential.
-Anchor run ~2/3 complete at time of writing. Already visible: Claude parses **1549/1549 at 64
-tokens** (it needed 256 in July, so it now enters Family A); Gemini fails **709/1549 (45.8%)** at 64
-tokens and returns `HTTP 400` when reasoning is disabled — "cannot be budget-matched" is now
-measured rather than asserted.
+### GPU work — complete
 
-**To resume if interrupted:** runs are crash-safe and resumable. Re-run
-`bash harness/scripts/run_round2_batch.sh`; completed rows are skipped, so no spend is repeated.
-Single run: `python -m harness.run --config harness/configs/<name>.yaml --run-id <existing-id>`.
+G1 (concurrency sweeps, 3 models), G2 (Gemma, unblocked by pinning `transformers==4.55.2`),
+G3 (PrimeVul fine-tune) all done. The pod can be terminated. `setup_gpu.sh` now pins the
+working stack and prints resolved versions for Appendix B.
 
-### Blocked on the author — no RunPod pod running
+### Still running
 
-There is no local GPU (`torch 2.7.1+cpu`), so **G1, G2 and G3 all need a live H200 pod**. Scripts
-are written and ready:
+API batch: `prompt_v2` ~82%, then `prompt_v3`, `draw2`, `draw3`. **$55.74 of ~$88.**
+Resumable — re-run `harness/scripts/run_round2_batch.sh`, completed rows are skipped.
+§4.8's results paragraph is the last placeholder in the manuscript.
 
-- **G1** `python -m harness.scripts.concurrency_sweep --config harness/configs/local_energy_qwen.yaml --levels 1,8,32,64`
-  (run-level NVML attribution, because per-request energy windows overlap under batching)
-- **G2** Gemma energy — needs a vLLM/CUDA stack that serves Gemma-3; the pinned 0.10.2 does not
-- **G3** `python -m harness.scripts.primevul_trained_baseline --epochs 3 --batch-size 16`
-  (train split downloads automatically; leakage already verified)
+### Open decision
 
-### Remaining once the batch lands
-
-§4.7 Families A/B/C results + table · §4.8 robustness results · break-even model (needs G1) ·
-confidence-based PR / VD-Score / calibration (from `r2_conf`) · fold results into the response
-letter · rebuild and re-deposit Zenodo.
-
-**Zenodo:** DOI corrected to `10.5281/zenodo.21391073` — the **concept** DOI, which always resolves
-to the latest version (verified live). `...074` was the version-1 DOI. `main.tex` and
-`build_submission_package.py` both updated.
+Families B and C are deliberately **not** merged with Family A: the reasoning runs are the
+July epoch and drift is real. Bringing them in-epoch costs ~$64 (3 frontier models with
+reasoning). Currently the paper reports each family within its own epoch and says so.
