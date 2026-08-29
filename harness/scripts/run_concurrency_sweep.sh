@@ -47,9 +47,14 @@ for i in $(seq 1 600); do
     grep -nE "^(ERROR|CRITICAL)|Error:|ValueError|RuntimeError|KeyError|TypeError|AssertionError|NotImplementedError|torch.OutOfMemoryError|No available memory|not supported|Unsupported" \
       "vllm_${TAG}.log" | grep -v "Engine core initialization failed" | head -20
     echo
-    echo "   ---- EngineCore traceback ----"
+    echo "   ---- EngineCore traceback (head) ----"
     awk '/EngineCore.*(failed|Traceback)|Traceback \(most recent call last\)/{f=1} f' \
-      "vllm_${TAG}.log" | head -40
+      "vllm_${TAG}.log" | head -25
+    echo
+    # pydantic and friends print the ACTUAL reason after the traceback, so a
+    # head-only view systematically hides it -- always show the tail as well.
+    echo "   ---- last 15 lines (the reason usually lives here) ----"
+    tail -15 "vllm_${TAG}.log"
     echo
     echo "   Full log: vllm_${TAG}.log ($(wc -l < "vllm_${TAG}.log") lines)"
     exit 1
