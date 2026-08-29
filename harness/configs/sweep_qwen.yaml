@@ -1,0 +1,40 @@
+# CONCURRENCY SWEEP -- Qwen3-Coder-30B (MoE, ~3B active), served locally by vLLM.
+#   bash harness/scripts/run_concurrency_sweep.sh Qwen/Qwen3-Coder-30B-A3B-Instruct \
+#        harness/configs/sweep_qwen.yaml qwen
+#
+# NOTE the meter set: energy is measured at the RUN level by concurrency_sweep.py
+# (one NVML counter read before and after each level), NOT per request. Per-request
+# energy windows overlap once concurrency exceeds 1, so a per-call meter would
+# double-count. `latency` stays because wall-clock per request is still meaningful.
+#
+# n=400 is a compromise: large enough that concurrency 64 reaches steady state,
+# small enough that concurrency 1 finishes in ~10 minutes.
+run_name: sweep_qwen
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 400
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 1          # overridden per level by HARNESS_CONCURRENCY_OVERRIDE
+models:
+  - id: qwen3-coder-30b-local
+    backend: api
+    params:
+      provider: vllm
+      model: Qwen/Qwen3-Coder-30B-A3B-Instruct   # must match the served model exactly
+      gpu_index: 0
+    price: { in: 0.0, out: 0.0 }
+meters: [latency]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+  prompt_variant: v1
+output_dir: harness/runs

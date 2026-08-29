@@ -1,0 +1,65 @@
+# ROUND-2 REVISION RUN (P1 prompt variant v3)
+# Prompt sensitivity: v3 keeps the persona but offers NO before YES (option-order bias).
+#
+# Providers are PINNED with fallbacks off. Open weights are served by 4-14 competing
+# providers whose list prices span 4-14x at one instant and whose quantization differs
+# (GLM-5 fp8 at GMICloud but fp4 at DeepInfra; Llama-3.3-70B fp8 at DeepInfra but bf16
+# at Novita), so an unpinned gateway run is neither price- nor numerics-reproducible.
+# Qwen is pinned to SiliconFlow because Novita's endpoint bills output tokens while
+# returning empty content (verified 2026-08-29), which scores as a parse failure and
+# would understate the model. Prices are the pinned provider's list price, snapshot
+# 2026-08-29. Llama's DeepInfra endpoint is fp8, matching our on-GPU FP8 measurement.
+run_name: r2_prompt_v3
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 10
+models:
+  - id: claude-sonnet-5
+    backend: api
+    params: { provider: openrouter, model: anthropic/claude-sonnet-5, active_params_b: 100, provider_order: [Anthropic], reasoning: { enabled: false } }
+    price: { in: 2.0, out: 10.0 }
+  - id: gpt-5.1
+    backend: api
+    params: { provider: openrouter, model: openai/gpt-5.1, active_params_b: 100, provider_order: [OpenAI], reasoning: { enabled: false } }
+    price: { in: 1.25, out: 10.0 }
+  - id: gemini-3.1-pro
+    backend: api
+    params: { provider: openrouter, model: google/gemini-3.1-pro-preview, active_params_b: 100, provider_order: [Google], reasoning: { enabled: true } }
+    price: { in: 2.0, out: 12.0 }
+  - id: deepseek-v3.2
+    backend: api
+    params: { provider: openrouter, model: deepseek/deepseek-v3.2, active_params_b: 37, provider_order: [GMICloud], reasoning: { enabled: false } }
+    price: { in: 0.209, out: 0.31 }
+  - id: glm-5
+    backend: api
+    params: { provider: openrouter, model: z-ai/glm-5, active_params_b: 32, provider_order: [GMICloud], reasoning: { enabled: false } }
+    price: { in: 0.6, out: 1.92 }
+  - id: llama-3.3-70b
+    backend: api
+    params: { provider: openrouter, model: meta-llama/llama-3.3-70b-instruct, active_params_b: 70, provider_order: [DeepInfra] }
+    price: { in: 0.1, out: 0.32 }
+  - id: qwen3-coder-30b
+    backend: api
+    params: { provider: openrouter, model: qwen/qwen3-coder-30b-a3b-instruct, active_params_b: 3, provider_order: [SiliconFlow] }
+    price: { in: 0.07, out: 0.28 }
+  - id: gemma-3-4b
+    backend: api
+    params: { provider: openrouter, model: google/gemma-3-4b-it, active_params_b: 4, provider_order: [DeepInfra] }
+    price: { in: 0.05, out: 0.1 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+  prompt_variant: v3
+output_dir: harness/runs

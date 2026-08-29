@@ -36,7 +36,7 @@ METRICS = Path("harness/runs/primevul_combined/enriched_metrics.csv")
 TITLE = ("Open or Frontier? A Cost- and Energy-Aware Benchmark of "
          "Large Language Models for Software Vulnerability Detection")
 JOURNAL = "Computers"
-ZENODO_DOI = "10.5281/zenodo.21391074"
+ZENODO_DOI = "10.5281/zenodo.21391073"
 
 # Files whose presence in an archive would leak credentials or bloat the deposit.
 BLOCKED_NAMES = {".env"}
