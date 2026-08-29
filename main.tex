@@ -173,6 +173,8 @@ Table~\ref{tab:results} reports all eight models plus the two trivial baselines,
 
 On the threshold-invariant MCC the separation is narrower still. DeepSeek-V3.2 (0.344) leads clearly, but Gemini-3.1-Pro (0.298) is level with Gemma-3-4B (0.296) and above GPT-5.1 (0.230), so the unambiguous quality result is DeepSeek's rather than a blanket open-weight advantage.
 
+One cross-reference matters for reading the rest of the paper. The figures in this section come from our first measurement epoch, in which the models were reached through the gateway's default routing and two frontier models ran at a larger output budget. Section~\ref{sec:families} re-measures every model in a single later epoch at a matched budget with providers pinned, and the absolute numbers there are higher --- DeepSeek-V3.2 reaches 0.711 rather than 0.676, for instance. The difference is service drift over seven weeks rather than a change of method or configuration, as Section~\ref{sec:limits} establishes, and it is why we report the two epochs separately rather than pooling them. Where the two disagree, Section~\ref{sec:families} is the cleaner instrument for \emph{quality} comparisons; this section remains the reference for cost and energy, which were measured alongside it.
+
 Absolute quality is nonetheless modest for all models (balanced accuracy 0.51--0.68, MCC 0.02--0.34), and specificity varies widely, from 0.25 (Llama-3.3-70B) to 0.57 (Qwen3-Coder-30B). The frontier models in particular show high recall but low specificity (Gemini-3.1-Pro and Claude-Sonnet-5 flag about 70\% of safe functions), which is why they trail on the balanced metric despite competitive F1. Because our sample is balanced by construction while real code is not, none of these figures should be read as deployment performance; Section~\ref{sec:prevalence} translates them to PrimeVul's natural 1:44 base rate, where every model's precision falls to 2.3--3.8\% and the balanced-accuracy ranking is revealed to identify the \emph{least miscalibrated} model rather than a usable one.
 
 \begin{table}[H]
@@ -614,7 +616,9 @@ The conclusion is stable across both. DeepSeek-V3.2 beats all three frontier mod
 
 \begin{table}[H]
 \caption{Complete primary family: the three top open models against the three frontier models, ordered by adjusted $p$. $\Delta$ is the paired balanced-accuracy difference (A minus B) on the common parsed set of size $n$, with a percentile bootstrap 95\% CI. Holm correction is over these nine hypotheses. Values below the bootstrap's $5\times10^{-5}$ resolution are reported as bounds.\label{tab:pairwise}}
-\begin{tabularx}{\textwidth}{llCCCC}
+\begin{adjustwidth}{-\extralength}{0cm}
+\footnotesize
+\begin{tabularx}{\fulllength}{llCCCC}
 \toprule
 \textbf{Model A} & \textbf{Model B} & \textbf{$n$} & \textbf{$\Delta$ bal.\ acc.} & \textbf{95\% CI} & \textbf{Holm $p$}\\
 \midrule
@@ -629,6 +633,7 @@ GLM-5 & GPT-5.1 & 1545 & $+0.0203$ & $[-0.002, +0.043]$ & $0.152$\\
 GLM-5 & Gemini-3.1-Pro & 1522 & $+0.0119$ & $[-0.006, +0.030]$ & $0.203$\\
 \bottomrule
 \end{tabularx}
+\end{adjustwidth}
 \end{table}
 
 \section[\appendixname~\thesection]{Reproducibility Details}\label{app:repro}
@@ -637,10 +642,13 @@ GLM-5 & Gemini-3.1-Pro & 1522 & $+0.0119$ & $[-0.006, +0.030]$ & $0.203$\\
 The anchor template (\texttt{v1}) is used for every result in the main table. Templates \texttt{v2} and \texttt{v3} are the paraphrases used in the prompt-sensitivity analysis (Section~\ref{sec:robustness}), and each changes exactly one thing relative to \texttt{v1} so that a shift can be attributed: \texttt{v2} removes the expert persona, and \texttt{v3} keeps the persona but offers ``NO'' before ``YES'' to test option-order bias. Template \texttt{conf} additionally elicits a calibrated probability, which supplies the continuous score used for the threshold-swept analyses.
 
 \vspace{4pt}
-\noindent\texttt{v1} (anchor):
+\noindent\texttt{v1} (anchor). Line breaks below are typographic; the prompt sends each paragraph as a single line:
 \begin{quote}\footnotesize\ttfamily
-You are a security code reviewer. Analyze the following function for security vulnerabilities.\\[2pt]
-Answer with a single word first: "YES" if the code contains a vulnerability, or "NO" if it does not. You may then add a brief explanation.\\[2pt]
+You are a security code reviewer. Analyze the following function for\\
+security vulnerabilities.\\[2pt]
+Answer with a single word first: "YES" if the code contains a\\
+vulnerability, or "NO" if it does not. You may then add a brief\\
+explanation.\\[2pt]
 Code:\\
 ```\\
 \{code\}\\
