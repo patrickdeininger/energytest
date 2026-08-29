@@ -34,7 +34,20 @@ trap 'kill $VPID 2>/dev/null || true' EXIT
 echo ">> waiting for vLLM (first serve also downloads weights; up to 40 min) ..."
 for i in $(seq 1 600); do
   if ! kill -0 "$VPID" 2>/dev/null; then
-    echo "   vLLM exited early -- tail of vllm_${TAG}.log:"; tail -30 "vllm_${TAG}.log"; exit 1
+    echo "   vLLM exited early. The outer traceback is almost never the cause:"
+    echo "   vLLM raises 'Engine core initialization failed. See root cause above',"
+    echo "   and the real error is raised in the EngineCore subprocess further up."
+    echo
+    echo "   ---- first real error in vllm_${TAG}.log ----"
+    grep -nE "^(ERROR|CRITICAL)|Error:|ValueError|RuntimeError|KeyError|TypeError|AssertionError|NotImplementedError|torch.OutOfMemoryError|No available memory|not supported|Unsupported" \
+      "vllm_${TAG}.log" | grep -v "Engine core initialization failed" | head -20
+    echo
+    echo "   ---- EngineCore traceback ----"
+    awk '/EngineCore.*(failed|Traceback)|Traceback \(most recent call last\)/{f=1} f' \
+      "vllm_${TAG}.log" | head -40
+    echo
+    echo "   Full log: vllm_${TAG}.log ($(wc -l < "vllm_${TAG}.log") lines)"
+    exit 1
   fi
   if curl -sf http://localhost:8000/v1/models >/dev/null 2>&1; then echo "   ready"; break; fi
   sleep 5
