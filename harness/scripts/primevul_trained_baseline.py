@@ -314,7 +314,11 @@ def main() -> int:
         "precision_at_1to44_ci": [precision_at_prevalence(tl, 1 - fh, PREVALENCE),
                                   precision_at_prevalence(th, 1 - fl, PREVALENCE)],
         "epochs": args.epochs, "seed": args.seed,
-        "class_weighted": not args.no_class_weight,
+        # When scoring a checkpoint we did not train in this process, the flag
+        # describes nothing: the loss used is a property of that training run.
+        # Recording the flag here would mislabel the artifact.
+        "class_weighted": (None if args.from_checkpoint else not args.no_class_weight),
+        "scored_from_checkpoint": args.from_checkpoint or None,
         "threshold": tuned, "threshold_source": "validation split",
         "validation_bal_acc": tuned_ba, "n_validation_used": len(vrows),
         "leakage": leak,
