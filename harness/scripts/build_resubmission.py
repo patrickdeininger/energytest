@@ -9,7 +9,8 @@ Writes into MDPI_Review_Round1/submission_MDPI/:
                               editor can see every change without diffing sources
   manuscript_latex.zip        sources to rebuild manuscript.pdf from scratch
   figures.zip                 figures at submission resolution
-  reproduction.zip            harness, configs, per-run results, analysis scripts
+  reproduction.zip            harness, configs, per-run results, analysis scripts,
+                              and a README mapping each script to the table it produces
   cover_letter.{md,docx}      to the editors
   response_reviewer_{1,2,3}.{md,docx}
 
@@ -101,8 +102,12 @@ def build_marked_pdf() -> bool:
     ok = Path("diff_main.pdf").exists()
     if ok:
         shutil.copy("diff_main.pdf", OUT / "manuscript_marked.pdf")
-        print(f"  manuscript_marked.pdf  (added {diff.stdout.count('DIFadd')} / "
-              f"deleted {diff.stdout.count('DIFdel')} marked blocks)")
+        # Count change HUNKS, not macro occurrences: latexdiff emits several
+        # \DIFadd{} macros per contiguous insertion but exactly one
+        # \DIFaddbegin, so the begin markers are the number of distinct changes.
+        adds = diff.stdout.count(r"\DIFaddbegin")
+        dels = diff.stdout.count(r"\DIFdelbegin")
+        print(f"  manuscript_marked.pdf  ({adds} insertions / {dels} deletions)")
     else:
         print("  marked PDF did not compile:", build.stdout[-300:])
     base.unlink(missing_ok=True)
@@ -153,6 +158,8 @@ def main() -> int:
                 if p.is_file() and not _skip(p) and (zf.write(p, p.name) or True))
     print(f"  figures.zip  ({n} files)")
 
+    from harness.scripts.reproduction_readme import README
+
     with zipfile.ZipFile(OUT / "reproduction.zip", "w", zipfile.ZIP_DEFLATED) as zf:
         n = add_tree(zf, Path("harness"), "harness")
         n += add_tree(zf, Path("figures"), "figures")
@@ -160,6 +167,8 @@ def main() -> int:
             if Path(f).exists():
                 zf.write(f, f)
                 n += 1
+        zf.writestr("README.md", README)
+        n += 1
     size = (OUT / "reproduction.zip").stat().st_size / 1e6
     print(f"  reproduction.zip  ({n} files, {size:.1f} MB)")
 
