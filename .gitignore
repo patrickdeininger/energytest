@@ -31,7 +31,11 @@ Thumbs.db
 *.toc
 
 # Submission bundles: regenerable via harness/scripts/build_submission_package.py
+# and harness/scripts/build_resubmission.py. The response and cover letters are
+# hand-written source, not build output, so they are tracked explicitly.
 submission_MDPI/
+!MDPI_Review_Round1/submission_MDPI/
+!MDPI_Review_Round1/submission_MDPI/*.md
 
 # Zenodo deposit bundle: regenerable via harness/scripts/build_submission_package.py
 harness.zip
