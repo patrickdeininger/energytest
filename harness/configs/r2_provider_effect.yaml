@@ -1,0 +1,55 @@
+# ROUND-2: does the SERVING PROVIDER change detection accuracy?
+#
+# The anchor re-run showed the two models with a single forced provider (GPT-5.1,
+# Gemma-3-4B) unchanged from the July epoch, while every model whose provider we
+# newly pinned moved by +0.005 to +0.057 balanced accuracy. That is consistent
+# with provider dependence rather than temporal drift, but July did not log the
+# routed provider, so it cannot be attributed from those runs alone.
+#
+# This tests it directly on identical weights, identical prompts, identical seed,
+# in one epoch -- a three-arm design that separates the two candidate causes:
+#
+#   deepinfra-fp8  FP8, our pinned baseline
+#   nebius-fp8     FP8, a DIFFERENT operator      -> isolates the operator effect
+#   novita-bf16    bf16, i.e. different NUMERICS  -> isolates the precision effect
+#
+# Any difference between arms 1 and 2 is operator/serving-stack; any additional
+# difference in arm 3 is numerics. Llama-3.3-70B is the only model in our roster
+# offered at genuinely different precisions by competing hosts, which is what
+# makes the comparison possible at all.
+#
+# Cheap: ~$0.46 for all three arms over the full N=1549.
+run_name: r2_provider_effect
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 6
+models:
+  - id: llama-deepinfra-fp8
+    backend: api
+    params: { provider: openrouter, model: meta-llama/llama-3.3-70b-instruct, active_params_b: 70, provider_order: [DeepInfra] }
+    price: { in: 0.100, out: 0.320 }
+  - id: llama-nebius-fp8
+    backend: api
+    params: { provider: openrouter, model: meta-llama/llama-3.3-70b-instruct, active_params_b: 70, provider_order: [Nebius] }
+    price: { in: 0.130, out: 0.400 }
+  - id: llama-novita-bf16
+    backend: api
+    params: { provider: openrouter, model: meta-llama/llama-3.3-70b-instruct, active_params_b: 70, provider_order: [Novita] }
+    price: { in: 0.135, out: 0.400 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 64
+  max_code_chars: 8000
+  prompt_variant: v1
+output_dir: harness/runs

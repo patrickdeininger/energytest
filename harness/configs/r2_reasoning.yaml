@@ -1,0 +1,59 @@
+# ROUND-2: all five reasoning-capable models, IN THE AUGUST EPOCH.
+#
+# The July reasoning runs cannot be placed beside the August Family A table. Re-running
+# the anchor configuration seven weeks later moved several models by +0.03 to +0.06
+# balanced accuracy, and a three-provider control on identical Llama weights showed
+# provider and precision account for under 0.01 of that -- so the shift is model-service
+# drift. Comparing a July reasoning score against an August direct score would silently
+# attribute that drift to the reasoning mode, which is exactly the confound the reviewers
+# asked us to remove.
+#
+# This run therefore repeats the July reasoning arms with everything else held to the
+# August configuration: same seed, same sample, prompt v1, providers pinned with fallbacks
+# off, 4096-token budget so reasoning is not truncated. Paired against r2_anchor64 it
+# gives Families B and C within one epoch.
+#
+# Cost: ~$75 at current pricing, dominated by Gemini and the two other frontier models.
+# Prices are the pinned provider's list price, snapshot 2026-08-29.
+run_name: r2_reasoning
+seed: 12345
+dataset:
+  source: jsonl
+  path: harness/data/primevul/primevul_test.jsonl
+  code_field: func
+  label_field: target
+  id_field: idx
+  cwe_field: cwe
+  n: 2000
+  stratify_by: label
+task: vuln_detect_binary
+concurrency: 10
+models:
+  - id: claude-sonnet-5-reasoning
+    backend: api
+    params: { provider: openrouter, model: anthropic/claude-sonnet-5, active_params_b: 100, provider_order: [Anthropic], reasoning: { enabled: true } }
+    price: { in: 2.0, out: 10.0 }
+  - id: gpt-5.1-reasoning
+    backend: api
+    params: { provider: openrouter, model: openai/gpt-5.1, active_params_b: 100, provider_order: [OpenAI], reasoning: { enabled: true } }
+    price: { in: 1.25, out: 10.0 }
+  - id: gemini-3.1-pro-reasoning
+    backend: api
+    params: { provider: openrouter, model: google/gemini-3.1-pro-preview, active_params_b: 100, provider_order: [Google], reasoning: { enabled: true } }
+    price: { in: 2.0, out: 12.0 }
+  - id: deepseek-v3.2-reasoning
+    backend: api
+    params: { provider: openrouter, model: deepseek/deepseek-v3.2, active_params_b: 37, provider_order: [GMICloud], reasoning: { enabled: true } }
+    price: { in: 0.209, out: 0.310 }
+  - id: glm-5-reasoning
+    backend: api
+    params: { provider: openrouter, model: z-ai/glm-5, active_params_b: 32, provider_order: [GMICloud], reasoning: { enabled: true } }
+    price: { in: 0.600, out: 1.920 }
+meters: [cost, latency, energy_estimated]
+reps: 1
+gen:
+  temperature: 0.0
+  max_output_tokens: 4096
+  max_code_chars: 8000
+  prompt_variant: v1
+output_dir: harness/runs
