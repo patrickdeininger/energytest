@@ -3,15 +3,21 @@
 **Manuscript:** *Open or Frontier? A Cost- and Energy-Aware Benchmark of Large Language Models for Software Vulnerability Detection*
 **Journal:** *Computers* (MDPI) · **Decision:** Major revision
 
-We thank all three reviewers. The reviews converged on the same four issues and we found them correct in every case — most importantly Reviewer 2's point 1, that our evidence supports a decisive *efficiency* advantage together with quality *competitiveness*, not quality dominance. We have restructured the paper's claims around that distinction rather than defending the original wording.
+We thank all three reviewers. The reviews converged on the same core objection — that our quality claim was stated more strongly than the design supported — and we found it correct. The paper is restructured around that distinction.
 
-Acting on the reviews produced five findings we did not anticipate. Four of them make our own results look worse, and we report all five:
+**What the revision tested, and what survived.** The paper's central finding is unchanged and is now far better supported: open-weight models occupy the cost and energy efficiency Pareto frontier, and no frontier model is Pareto-optimal. We tested that against everything the reviews raised — three prompt phrasings, three independent sample draws, two output budgets, every reasoning configuration, two measurement epochs seven weeks apart, and three serving providers on identical weights. The efficiency ordering is identical under all of them. Where the submitted manuscript asserted this robustness, the revision measures it. The quality claim did not survive as stated, and we have narrowed it.
 
-1. **Reviewers 2 and 3 were right that our learned baseline was a strawman — and the proper baseline beats every LLM we tested.** A 125-million-parameter CodeBERT fine-tuned on PrimeVul reaches 0.765 balanced accuracy against the best LLM's 0.711, at negligible cost. This narrows the paper's scope: our comparison is a comparison *among LLMs*, not a search for the best detector.
+The revision adds five sections, two appendices, roughly $166 of new measurements across twelve full-scale evaluation runs and three GPU experiments, and grows the manuscript from 14 to 32 pages.
+
+**What we corrected.** Acting on the reviews surfaced five problems we had not seen. Four make our own results look worse, and we report all five rather than quietly repairing them:
+
+1. **Reviewers 2 and 3 were right that our learned baseline was a strawman — and the proper baseline beats every LLM we tested.** A 125-million-parameter CodeBERT fine-tuned on PrimeVul reaches 0.765 balanced accuracy against the best LLM's 0.711, at negligible cost. Our comparison is therefore a comparison *among LLMs*, conditional on lacking in-distribution labels.
 2. **A *p*-value in §4.2 was wrong.** Two independently written scripts agree the reported 7×10⁻⁴ should be a bound below the bootstrap's resolution.
-3. **Flawfinder's precision was reported at a single threshold.** Swept properly it reaches 13.4%, not the 6% we claimed — which makes our LLM results look worse by comparison.
-4. **The FLOP energy estimator describes single-request, not batched, serving.** A measured concurrency sweep shows it sits 5–17× above batched energy, so the absolute energy and carbon figures in the submitted manuscript are overstated by roughly an order of magnitude.
+3. **Flawfinder's precision was quoted at a single threshold.** Swept properly it reaches 13.4%, not the 6% we claimed — which makes our LLM results look worse by comparison.
+4. **The FLOP energy estimator describes single-request, not batched, serving.** A measured concurrency sweep puts it 5–17× above batched energy, so the absolute energy and carbon figures in the submitted manuscript are overstated by roughly an order of magnitude. The comparative conclusions survive.
 5. **A hypothesis of our own, tested and refuted.** We suspected serving-provider dependence explained an inter-epoch shift; a three-provider controlled experiment shows the effect is below 0.01 and not significant. We report the negative result.
+
+A sixth finding emerged from the robustness work: prompt paraphrasing reorders the top of the table, so the quality ranking is a property of the (model, prompt) pair rather than of the models. This is the sharpest limitation in the paper and applies to the wider literature as much as to us.
 
 Section numbers refer to the revised manuscript.
 
