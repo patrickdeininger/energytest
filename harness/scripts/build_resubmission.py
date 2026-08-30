@@ -9,6 +9,7 @@ Writes into MDPI_Review_Round1/submission_MDPI/:
                               editor can see every change without diffing sources
   manuscript_latex.zip        sources to rebuild manuscript.pdf from scratch
   figures.zip                 figures at submission resolution
+  graphical_abstract.png      1100x560, regenerated from current results
   reproduction.zip            harness, configs, per-run results, analysis scripts,
                               and a README mapping each script to the table it produces
   cover_letter.{md,docx}      to the editors
@@ -63,6 +64,21 @@ def add_tree(zf: zipfile.ZipFile, src: Path, prefix: str = "") -> int:
     return n
 
 
+def safe_copy(src, dst) -> bool:
+    """Copy, but report a locked destination instead of aborting the build.
+
+    On Windows an open PDF viewer holds an exclusive lock, and one locked output
+    should not cost the caller the other six artifacts.
+    """
+    try:
+        shutil.copy(src, dst)
+        return True
+    except PermissionError:
+        print(f"  {Path(dst).name} LOCKED (close it in any viewer and re-run) "
+              f"-- kept the existing copy")
+        return False
+
+
 def run(cmd, **kw) -> subprocess.CompletedProcess:
     # text=True alone decodes with the Windows ANSI codepage, which cannot read
     # the manuscript's UTF-8 (em dashes, non-breaking spaces). Force it.
@@ -101,7 +117,8 @@ def build_marked_pdf() -> bool:
     build = run(["latexmk", "-pdf", "-interaction=nonstopmode", "diff_main.tex"])
     ok = Path("diff_main.pdf").exists()
     if ok:
-        shutil.copy("diff_main.pdf", OUT / "manuscript_marked.pdf")
+        if not safe_copy("diff_main.pdf", OUT / "manuscript_marked.pdf"):
+            return False
         # Count change HUNKS, not macro occurrences: latexdiff emits several
         # \DIFadd{} macros per contiguous insertion but exactly one
         # \DIFaddbegin, so the begin markers are the number of distinct changes.
@@ -135,10 +152,17 @@ def main() -> int:
     if not Path("main.pdf").exists():
         print("main.pdf missing -- build the manuscript first")
         return 1
-    shutil.copy("main.pdf", OUT / "manuscript.pdf")
-    print(f"  manuscript.pdf")
+    if safe_copy("main.pdf", OUT / "manuscript.pdf"):
+        print("  manuscript.pdf")
 
     build_marked_pdf()
+
+    from harness.scripts.graphical_abstract import build as build_ga
+    try:
+        ga = build_ga()
+        print(f"  {ga.name}")
+    except Exception as exc:                      # noqa: BLE001
+        print(f"  graphical_abstract.png FAILED: {exc}")
 
     with zipfile.ZipFile(OUT / "manuscript_latex.zip", "w", zipfile.ZIP_DEFLATED) as zf:
         for f in ("main.tex", "bibliography.bib", "main.bbl", "main.pdf"):
@@ -156,6 +180,10 @@ def main() -> int:
     with zipfile.ZipFile(OUT / "figures.zip", "w", zipfile.ZIP_DEFLATED) as zf:
         n = sum(1 for p in sorted(Path("figures").iterdir())
                 if p.is_file() and not _skip(p) and (zf.write(p, p.name) or True))
+        ga = OUT / "graphical_abstract.png"
+        if ga.exists():
+            zf.write(ga, ga.name)
+            n += 1
     print(f"  figures.zip  ({n} files)")
 
     from harness.scripts.reproduction_readme import README
